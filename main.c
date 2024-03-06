@@ -38,6 +38,10 @@ vec3 v3scale(vec3 v, double c) {
   return v;
 }
 
+double v3dot(vec3 v, vec3 w) {
+  return v.x * w.x + v.y * w.y + v.z * w.z;
+}
+
 double v3length(vec3 v) {
   return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
@@ -47,7 +51,19 @@ void writecolor(FILE *out, vec3 color) {
   fprintf(out, "%d %d %d\n", (int)(s * color.x), (int)(s * color.y), (int)(s * color.z));
 }
 
+int hit_sphere(vec3 center, double radius, ray r) {
+  vec3 oc = v3sub(r.orig, center);
+  double a = v3dot(r.dir, r.dir);
+  double b = 2.0 * v3dot(oc, r.dir);
+  double c = v3dot(oc, oc) - radius*radius;
+  double discriminant = b*b - 4*a*c;
+  return (discriminant >= 0);
+}
+
 vec3 ray_color(ray r) {
+  if (hit_sphere(v3(0, 0, -1), 0.5, r))
+        return v3(1, 0, 0);
+  
   vec3 dir = v3scale(r.dir, 1.0 / v3length(r.dir));
   double a = 0.5 * (dir.y + 1.0);
   return v3add(v3scale(v3(1.0, 1.0, 1.0), 1.0 - a), v3scale(v3(0.5, 0.7, 1.0), a));
@@ -63,7 +79,9 @@ int main(void) {
   int imagewidth = 400,
 	imageheight = imagewidth / aspectratio;
 
-  if (imageheight < 1) imageheight = 1;
+  if (imageheight < 1)
+	imageheight = 1;
+  
   viewportwidth = viewportheight * ((double)(imagewidth) / imageheight);
 
   vec3 cameracenter = {0},
