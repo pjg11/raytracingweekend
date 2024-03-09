@@ -46,23 +46,37 @@ double v3length(vec3 v) {
   return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
+vec3 at(ray r, double t) {
+  return v3add(r.orig, v3scale(r.dir, t));
+}
+
+
 void writecolor(FILE *out, vec3 color) {
   double s = 255.99;
   fprintf(out, "%d %d %d\n", (int)(s * color.x), (int)(s * color.y), (int)(s * color.z));
 }
 
-int hit_sphere(vec3 center, double radius, ray r) {
+double hit_sphere(vec3 center, double radius, ray r) {
   vec3 oc = v3sub(r.orig, center);
   double a = v3dot(r.dir, r.dir);
-  double b = 2.0 * v3dot(oc, r.dir);
+  double half_b = v3dot(oc, r.dir);
   double c = v3dot(oc, oc) - radius*radius;
-  double discriminant = b*b - 4*a*c;
-  return (discriminant >= 0);
+  double discriminant = half_b * half_b - a * c;
+  if (discriminant < 0) {
+	return -1.0;
+  }
+  else {
+	return (-half_b - sqrt(discriminant) ) / a;
+  }
 }
 
 vec3 ray_color(ray r) {
-  if (hit_sphere(v3(0, 0, -1), 0.5, r))
-        return v3(1, 0, 0);
+  double t = hit_sphere(v3(0, 0, -1), 0.5, r);
+  if (t > 0.0) {
+	vec3 b = v3sub(at(r, t), v3(0, 0, -1));
+	vec3 n = v3scale(b, 1 / v3length(b));
+	return v3scale(v3(n.x + 1, n.y + 1, n.z + 1), 0.5);
+  }
   
   vec3 dir = v3scale(r.dir, 1.0 / v3length(r.dir));
   double a = 0.5 * (dir.y + 1.0);
