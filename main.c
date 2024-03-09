@@ -9,6 +9,17 @@ typedef struct {
   vec3 orig, dir;
 } ray;
 
+typedef struct {
+  vec3 center;
+  double radius;
+} sphere;
+
+typedef struct {
+  vec3 point;
+  vec3 normal;
+  double t;
+} hitrecord;
+
 vec3 v3(double x, double y, double z) {
   vec3 v;
   v.x = x;
@@ -56,7 +67,34 @@ void writecolor(FILE *out, vec3 color) {
   fprintf(out, "%d %d %d\n", (int)(s * color.x), (int)(s * color.y), (int)(s * color.z));
 }
 
-double hit_sphere(vec3 center, double radius, ray r) {
+int spherehit(sphere s, ray r, double raytmin, double raytmax, hitrecord rec) {
+  vec3 oc = v3sub(r.orig, s.center);
+  double a = v3dot(r.dir, r.dir);
+  double halfb = v3dot(oc, r.dir);
+  double c = v3dot(oc, oc) - s.radius*s.radius;
+
+  double discriminant = halfb * halfb - a * c;
+  if (discriminant < 0) {
+	return 0;
+  }
+  double sqrtd = sqrt(discriminant);
+
+  double root = (-halfb - sqrtd) / a;
+  if (root <= raytmin || raytmax <= root) {
+	root = (-halfb - sqrtd) / a;
+	if (root <= raytmin || raytmax <= root) {
+	  return 0;
+	}
+  }
+
+  rec.t = root;
+  rec.point = at(r, rec.t);
+  rec.normal = v3scale(v3sub(rec.point, s.center), 1 / s.radius);
+
+  return 1;
+}
+
+double hitsphere(vec3 center, double radius, ray r) {
   vec3 oc = v3sub(r.orig, center);
   double a = v3dot(r.dir, r.dir);
   double half_b = v3dot(oc, r.dir);
@@ -71,7 +109,7 @@ double hit_sphere(vec3 center, double radius, ray r) {
 }
 
 vec3 ray_color(ray r) {
-  double t = hit_sphere(v3(0, 0, -1), 0.5, r);
+  double t = hitsphere(v3(0, 0, -1), 0.5, r);
   if (t > 0.0) {
 	vec3 b = v3sub(at(r, t), v3(0, 0, -1));
 	vec3 n = v3scale(b, 1 / v3length(b));
