@@ -64,20 +64,6 @@ typedef struct {
   int frontface;
 } hitrecord;
 
-double hitsphere(vec3 center, double radius, ray r) {
-  vec3 oc = v3sub(r.orig, center);
-  double a = v3dot(r.dir, r.dir);
-  double half_b = v3dot(oc, r.dir);
-  double c = v3dot(oc, oc) - radius * radius;
-  double discriminant = half_b * half_b - a * c;
-
-  if (discriminant < 0) {
-    return -1.0;
-  } else {
-    return (-half_b - sqrt(discriminant)) / a;
-  }
-}
-
 void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->frontface = v3dot(r.dir, outwardnormal) < 0;
   rec->normal = rec->frontface ? outwardnormal : v3scale(outwardnormal, -1);
