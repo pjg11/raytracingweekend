@@ -1,13 +1,41 @@
 #include "camera.h"
 #include <stdio.h>
 
-void writecolor(FILE *out, vec3 color) {
-  double s = 255.99;
-  fprintf(out, "%d %d %d\n", (int)(s * color.x), (int)(s * color.y),
-          (int)(s * color.z));
+double clamp(double x) {
+  double tmin = 0.000, tmax = 0.999;
+  if (x < tmin)
+    return tmin;
+  if (x > tmax)
+    return tmax;
+  return x;
+}
+
+void writecolor(FILE *out, vec3 color, int samplesperpixel) {
+  int s = 256;
+  double scale = 1.0 / samplesperpixel, r = color.x * scale,
+         g = color.y * scale, b = color.z * scale;
+
+  fprintf(out, "%d %d %d\n", (int)(s * clamp(r)), (int)(s * clamp(g)),
+          (int)(s * clamp(b)));
 }
 
 vec3 at(ray r, double t) { return v3add(r.orig, v3scale(r.dir, t)); }
+
+double random_double(void) { return rand() / (RAND_MAX + 1.0); }
+
+vec3 pixelsamplesquare(camera *c) {
+  double px = -0.5 + random_double();
+  double py = -0.5 + random_double();
+  return v3add(v3scale(c->pixeldelu, px), v3scale(c->pixeldelv, py));
+}
+
+ray getray(camera *c, int i, int j) {
+  vec3 pixelcenter = v3add(c->pixel100loc, v3add(v3scale(c->pixeldelu, i),
+                                                 v3scale(c->pixeldelv, j)));
+  vec3 pixelsample = v3add(pixelcenter, pixelsamplesquare(c));
+  ray r = {c->center, v3sub(pixelsample, c->center)};
+  return r;
+}
 
 typedef struct {
   vec3 point, normal;
@@ -105,7 +133,7 @@ void initialize(camera *c) {
 }
 
 void render(camera *c, spherelist *world) {
-  int i, j;
+  int i, j, sample;
   initialize(c);
 
   printf("P3\n%d %d\n255\n", c->imagewidth, c->imageheight);
@@ -113,11 +141,12 @@ void render(camera *c, spherelist *world) {
   for (j = 0; j < c->imageheight; j++) {
     fprintf(stderr, "\rScanlines remaining: %d", c->imageheight - j);
     for (i = 0; i < c->imagewidth; i++) {
-      vec3 pixelcenter = v3add(c->pixel100loc, v3add(v3scale(c->pixeldelu, i),
-                                                     v3scale(c->pixeldelv, j)));
-      vec3 raydirection = v3sub(pixelcenter, c->center);
-      ray r = {c->center, raydirection};
-      writecolor(stdout, raycolor(r, world));
+      vec3 pixelcolor = v3(0, 0, 0);
+      for (sample = 0; sample < c->samplesperpixel; ++sample) {
+        ray r = getray(c, i, j);
+        pixelcolor = v3add(pixelcolor, raycolor(r, world));
+      }
+      writecolor(stdout, pixelcolor, c->samplesperpixel);
     }
   }
 
