@@ -10,10 +10,12 @@ double clamp(double x) {
   return x;
 }
 
+double togamma(double linear) { return sqrt(linear); }
+
 void writecolor(FILE *out, vec3 color, int samplesperpixel) {
   int s = 256;
-  double scale = 1.0 / samplesperpixel, r = color.x * scale,
-         g = color.y * scale, b = color.z * scale;
+  double scale = 1.0 / samplesperpixel, r = togamma(color.x * scale),
+         g = togamma(color.y * scale), b = togamma(color.z * scale);
 
   fprintf(out, "%d %d %d\n", (int)(s * clamp(r)), (int)(s * clamp(g)),
           (int)(s * clamp(b)));
@@ -120,7 +122,7 @@ vec3 raycolor(ray r, int depth, spherelist *world) {
 
   if (spherelisthit(world, r, 0.001, INFINITY, &rec)) {
     r.orig = rec.point;
-    r.dir = randomonhemisphere(rec.normal);
+    r.dir = v3add(rec.normal, randomunitvector());
     return v3scale(raycolor(r, depth - 1, world), 0.5);
   }
 
