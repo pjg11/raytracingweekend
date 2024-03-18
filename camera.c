@@ -21,11 +21,9 @@ void writecolor(FILE *out, vec3 color, int samplesperpixel) {
 
 vec3 at(ray r, double t) { return v3add(r.orig, v3scale(r.dir, t)); }
 
-double random_double(void) { return rand() / (RAND_MAX + 1.0); }
-
 vec3 pixelsamplesquare(camera *c) {
-  double px = -0.5 + random_double();
-  double py = -0.5 + random_double();
+  double px = -0.5 + randomdouble();
+  double py = -0.5 + randomdouble();
   return v3add(v3scale(c->pixeldelu, px), v3scale(c->pixeldelv, py));
 }
 
@@ -92,13 +90,36 @@ int spherelisthit(spherelist *l, ray r, double tmin, double tmax,
   return hitanything;
 }
 
+vec3 randominunitsphere(void) {
+  while(1) {
+	vec3 p = v3randominterval(-1,1);
+	if(v3length(p) < 1) {
+	  return p;
+	}
+  }
+}
+
+vec3 randomunitvector(void) {
+  return v3unit(randominunitsphere());
+}
+
+vec3 randomonhemisphere(vec3 normal) {
+  vec3 onunitsphere = randomunitvector();
+  if(v3dot(onunitsphere, normal) > 0.0)
+	return onunitsphere;
+  else
+	return v3scale(onunitsphere, -1);
+}
+
 vec3 raycolor(ray r, spherelist *world) {
   hitrecord rec;
   vec3 dir;
   double a;
 
   if (spherelisthit(world, r, 0, INFINITY, &rec)) {
-    return v3scale(v3add(rec.normal, v3(1, 1, 1)), 0.5);
+	r.orig = rec.point;
+	r.dir = randomonhemisphere(rec.normal);
+	return v3scale(raycolor(r, world), 0.5);
   }
 
   dir = v3unit(r.dir);
@@ -139,7 +160,7 @@ void render(camera *c, spherelist *world) {
   printf("P3\n%d %d\n255\n", c->imagewidth, c->imageheight);
 
   for (j = 0; j < c->imageheight; j++) {
-    fprintf(stderr, "\rScanlines remaining: %d", c->imageheight - j);
+    fprintf(stderr, "\rScanlines remaining: %d ", c->imageheight - j);
     for (i = 0; i < c->imagewidth; i++) {
       vec3 pixelcolor = v3(0, 0, 0);
       for (sample = 0; sample < c->samplesperpixel; ++sample) {

@@ -15,6 +15,9 @@ vec3 v3scale(vec3 v, double c);
 double v3dot(vec3 v, vec3 w);
 double v3length(vec3 v);
 vec3 v3unit(vec3 v);
+double randomdouble(void);
+vec3 v3random(void);
+vec3 v3randominterval(double min, double max);
 
 typedef struct {
   vec3 orig, dir;

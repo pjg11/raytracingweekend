@@ -35,6 +35,16 @@ double v3length(vec3 v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
 
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
+double randomdouble(void) { return rand() / (RAND_MAX + 1.0); }
+
+vec3 v3random(void) {
+  return v3(randomdouble(), randomdouble(), randomdouble());
+}
+
+vec3 v3randominterval(double min, double max) {
+  return v3add(v3(min, min, min), v3scale(v3random(), max - min));
+}
+
 sphere sp(vec3 center, double radius) {
   sphere s;
   s.center = center;
