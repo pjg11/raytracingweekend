@@ -5,7 +5,7 @@
 
 typedef struct {
   double aspectratio;
-  int imageheight, samplesperpixel, imagewidth;
+  int imageheight, samplesperpixel, maxdepth, imagewidth;
   vec3 center, pixel100loc, pixeldelu, pixeldelv;
 } camera;
 

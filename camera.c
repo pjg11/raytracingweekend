@@ -91,35 +91,37 @@ int spherelisthit(spherelist *l, ray r, double tmin, double tmax,
 }
 
 vec3 randominunitsphere(void) {
-  while(1) {
-	vec3 p = v3randominterval(-1,1);
-	if(v3length(p) < 1) {
-	  return p;
-	}
+  while (1) {
+    vec3 p = v3randominterval(-1, 1);
+    if (v3length(p) < 1) {
+      return p;
+    }
   }
 }
 
-vec3 randomunitvector(void) {
-  return v3unit(randominunitsphere());
-}
+vec3 randomunitvector(void) { return v3unit(randominunitsphere()); }
 
 vec3 randomonhemisphere(vec3 normal) {
   vec3 onunitsphere = randomunitvector();
-  if(v3dot(onunitsphere, normal) > 0.0)
-	return onunitsphere;
+  if (v3dot(onunitsphere, normal) > 0.0)
+    return onunitsphere;
   else
-	return v3scale(onunitsphere, -1);
+    return v3scale(onunitsphere, -1);
 }
 
-vec3 raycolor(ray r, spherelist *world) {
+vec3 raycolor(ray r, int depth, spherelist *world) {
   hitrecord rec;
   vec3 dir;
   double a;
 
-  if (spherelisthit(world, r, 0, INFINITY, &rec)) {
-	r.orig = rec.point;
-	r.dir = randomonhemisphere(rec.normal);
-	return v3scale(raycolor(r, world), 0.5);
+  if (depth <= 0) {
+    return v3(0, 0, 0);
+  }
+
+  if (spherelisthit(world, r, 0.001, INFINITY, &rec)) {
+    r.orig = rec.point;
+    r.dir = randomonhemisphere(rec.normal);
+    return v3scale(raycolor(r, depth - 1, world), 0.5);
   }
 
   dir = v3unit(r.dir);
@@ -165,7 +167,7 @@ void render(camera *c, spherelist *world) {
       vec3 pixelcolor = v3(0, 0, 0);
       for (sample = 0; sample < c->samplesperpixel; ++sample) {
         ray r = getray(c, i, j);
-        pixelcolor = v3add(pixelcolor, raycolor(r, world));
+        pixelcolor = v3add(pixelcolor, raycolor(r, c->maxdepth, world));
       }
       writecolor(stdout, pixelcolor, c->samplesperpixel);
     }
