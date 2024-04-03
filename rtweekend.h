@@ -2,6 +2,7 @@
 #define RTWEEKEND_H
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 typedef struct {
@@ -9,18 +10,6 @@ typedef struct {
 } vec3;
 
 vec3 v3(double x, double y, double z);
-vec3 v3add(vec3 v, vec3 w);
-vec3 v3sub(vec3 v, vec3 w);
-vec3 v3scale(vec3 v, double c);
-vec3 v3mul(vec3 v, vec3 w);
-double v3dot(vec3 v, vec3 w);
-double v3length(vec3 v);
-vec3 v3unit(vec3 v);
-double randomdouble(void);
-vec3 v3random(void);
-vec3 v3randominterval(double min, double max);
-int v3nearzero(vec3 v);
-vec3 reflect(vec3 v, vec3 w);
 
 typedef struct {
   vec3 orig, dir;
@@ -29,8 +18,7 @@ typedef struct {
 typedef struct hitrecord hitrecord;
 
 typedef struct {
-  int (*scatter)(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered,
-                 vec3 albedo);
+  int (*scatter)(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered);
   vec3 albedo;
   double fuzz;
 } material;
@@ -40,9 +28,9 @@ material metal(vec3 albedo, double fuzz);
 
 struct hitrecord {
   vec3 point, normal;
-  material mat;
   double t;
   int frontface;
+  material mat;
 };
 
 typedef struct {
@@ -60,6 +48,12 @@ typedef struct {
 
 void spherelistadd(spherelist *l, sphere s);
 
-vec3 randomunitvector(void);
+typedef struct {
+  double aspectratio;
+  int imageheight, samplesperpixel, maxdepth, imagewidth;
+  vec3 center, pixel100loc, pixeldelu, pixeldelv;
+} camera;
+
+void render(camera *c, spherelist *world);
 
 #endif // RTWEEKEND_H
