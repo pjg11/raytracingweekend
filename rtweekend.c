@@ -154,6 +154,12 @@ vec3 refract(vec3 uv, vec3 n, double etaioveretat) {
 		return v3add(routperp, routparallel);
 }
 
+double reflectance(double cosine, double refidx) {
+	double r0 = (1.0 - refidx) / (1.0 + refidx);
+  r0 *= r0;
+  return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
+}
+
 int lambertianscatter(ray in, hitrecord *rec, vec3 *attenuation,
                       ray *scattered) {
   material mat = rec->mat;
@@ -194,16 +200,17 @@ material metal(vec3 albedo, double fuzz) {
 
 int dielectricscatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
 	material mat = rec->mat;
-	double refractionratio = rec->frontface ? 1/mat.ir : mat.ir;
+	double refractionratio = rec->frontface ? 1.0/mat.ir : mat.ir;
 	*attenuation = v3(1, 1, 1);
 	vec3 unitdir = v3unit(in.dir);
-	double costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1),
-	       sintheta = sqrt(1 - costheta * costheta);
+	double costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1.0),
+	       sintheta = sqrt(1.0 - costheta * costheta);
 	
 	scattered->orig = rec->point;
-	scattered->dir = refractionratio * sintheta > 10
-	                 ? reflect(unitdir, rec->normal)
-	                 : refract(unitdir, rec->normal, refractionratio);
+	scattered->dir = refractionratio * sintheta > 1.0 ||
+	                 reflectance(costheta, refractionratio) > randomdouble()
+	             ? reflect(unitdir, rec->normal)
+	             : refract(unitdir, rec->normal, refractionratio);
 	return 1;
 }
 
