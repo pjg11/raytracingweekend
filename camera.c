@@ -66,7 +66,7 @@ int spherehit(sphere s, ray r, double tmin, double tmax, hitrecord *rec) {
   rec->point = at(r, rec->t);
   outwardnormal = v3scale(v3sub(rec->point, s.center), 1 / s.radius);
   setfacenormal(r, outwardnormal, rec);
-	rec->mat = s.mat;
+  rec->mat = s.mat;
   return 1;
 }
 
@@ -108,7 +108,7 @@ vec3 raycolor(ray r, int depth, spherelist *world) {
     ray scattered;
     vec3 attenuation;
     if (rec.mat.scatter(r, &rec, &attenuation, &scattered, rec.mat.albedo))
-    	return v3mul(attenuation, raycolor(scattered, depth - 1, world));
+      return v3mul(attenuation, raycolor(scattered, depth - 1, world));
     return black;
   }
 

@@ -29,12 +29,14 @@ typedef struct {
 typedef struct hitrecord hitrecord;
 
 typedef struct {
-	int (* scatter)(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered, vec3 albedo);
-	vec3 albedo;
+  int (*scatter)(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered,
+                 vec3 albedo);
+  vec3 albedo;
+  double fuzz;
 } material;
 
 material lambertian(vec3 albedo);
-material metal(vec3 albedo);
+material metal(vec3 albedo, double fuzz);
 
 struct hitrecord {
   vec3 point, normal;
