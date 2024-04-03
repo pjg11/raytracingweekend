@@ -35,6 +35,11 @@ double v3length(vec3 v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
 
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
+int v3nearzero(vec3 v) {
+	double s = 1e-8;
+	return (fabs(v.x) < s) && (fabs(v.y) < s) && (fabs(v.z) < s);
+}
+
 double randomdouble(void) { return rand() / (RAND_MAX + 1.0); }
 
 vec3 v3random(void) {
@@ -59,4 +64,33 @@ void spherelistadd(spherelist *l, sphere s) {
     l->spheres = realloc(l->spheres, l->max * sizeof(*l->spheres));
   }
   l->spheres[l->n++] = s;
+}
+
+vec3 randominunitsphere(void) {
+  while (1) {
+    vec3 p = v3randominterval(-1, 1);
+    if (v3length(p) < 1) {
+      return p;
+    }
+  }
+}
+
+vec3 randomunitvector(void) { return v3unit(randominunitsphere()); }
+
+int lambertianscatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered, vec3 albedo) {
+	vec3 scatterdir = v3add(rec->normal, randomunitvector());
+	if(v3nearzero(scatterdir)) {
+		scatterdir = rec->normal;
+	}
+	scattered->orig = rec->point;
+	scattered->dir = scatterdir;
+	*attenuation = albedo;
+	return 1;
+}
+
+material lambertian(vec3 albedo) {
+	material mat;
+	mat.scatter = &lambertianscatter;
+	mat.albedo = albedo;
+	return mat;
 }

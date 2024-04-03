@@ -37,7 +37,6 @@ ray getray(camera *c, int i, int j) {
   return r;
 }
 
-
 void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->frontface = v3dot(r.dir, outwardnormal) < 0;
   rec->normal = rec->frontface ? outwardnormal : v3scale(outwardnormal, -1);
@@ -86,17 +85,6 @@ int spherelisthit(spherelist *l, ray r, double tmin, double tmax,
   }
   return hitanything;
 }
-
-vec3 randominunitsphere(void) {
-  while (1) {
-    vec3 p = v3randominterval(-1, 1);
-    if (v3length(p) < 1) {
-      return p;
-    }
-  }
-}
-
-vec3 randomunitvector(void) { return v3unit(randominunitsphere()); }
 
 vec3 randomonhemisphere(vec3 normal) {
   vec3 onunitsphere = randomunitvector();

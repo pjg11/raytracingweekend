@@ -18,6 +18,7 @@ vec3 v3unit(vec3 v);
 double randomdouble(void);
 vec3 v3random(void);
 vec3 v3randominterval(double min, double max);
+int v3nearzero(vec3 v);
 
 typedef struct {
   vec3 orig, dir;
@@ -26,7 +27,8 @@ typedef struct {
 typedef struct hitrecord hitrecord;
 
 typedef struct {
-	int (* scatter)(ray in, hitrecord rec, vec3 attentuation, ray scattered);
+	int (* scatter)(ray in, hitrecord *rec, vec3 *attentuation, ray *scattered, vec3 albedo);
+	vec3 albedo;
 } material;
 
 struct hitrecord {
@@ -50,5 +52,9 @@ typedef struct {
 } spherelist;
 
 void spherelistadd(spherelist *l, sphere s);
+
+vec3 randomunitvector(void);\
+
+material lambertian(vec3 albedo);
 
 #endif // RTWEEKEND_H
