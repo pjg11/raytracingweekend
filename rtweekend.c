@@ -22,6 +22,13 @@ vec3 v3sub(vec3 v, vec3 w) {
   return v;
 }
 
+vec3 v3mul(vec3 v, vec3 w) {
+  v.x *= w.x;
+  v.y *= w.y;
+  v.z *= w.z;
+  return v;
+}
+
 vec3 v3scale(vec3 v, double c) {
   v.x *= c;
   v.y *= c;
@@ -48,6 +55,10 @@ vec3 v3random(void) {
 
 vec3 v3randominterval(double min, double max) {
   return v3add(v3(min, min, min), v3scale(v3random(), max - min));
+}
+
+vec3 reflect(vec3 v, vec3 w) {
+	return v3sub(v, v3scale(w, 2 * v3dot(v,w)));
 }
 
 sphere sp(vec3 center, double radius, material mat) {
@@ -91,6 +102,21 @@ int lambertianscatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered,
 material lambertian(vec3 albedo) {
 	material mat;
 	mat.scatter = &lambertianscatter;
+	mat.albedo = albedo;
+	return mat;
+}
+
+int metalscatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered, vec3 albedo) {
+	vec3 reflected = reflect(v3unit(in.dir), rec->normal);
+	scattered->orig = rec->point;
+	scattered->dir = reflected;
+	*attenuation = albedo;
+	return 1;
+}
+
+material metal(vec3 albedo) {
+	material mat;
+	mat.scatter = &metalscatter;
 	mat.albedo = albedo;
 	return mat;
 }
