@@ -23,12 +23,26 @@ typedef struct {
   vec3 orig, dir;
 } ray;
 
+typedef struct hitrecord hitrecord;
+
+typedef struct {
+	int (* scatter)(ray in, hitrecord rec, vec3 attentuation, ray scattered);
+} material;
+
+struct hitrecord {
+  vec3 point, normal;
+  material mat;
+  double t;
+  int frontface;
+};
+
 typedef struct {
   vec3 center;
   double radius;
+  material mat;
 } sphere;
 
-sphere sp(vec3 center, double radius);
+sphere sp(vec3 center, double radius, material mat);
 
 typedef struct {
   sphere *spheres;

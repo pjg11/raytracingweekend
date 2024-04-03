@@ -37,11 +37,6 @@ ray getray(camera *c, int i, int j) {
   return r;
 }
 
-typedef struct {
-  vec3 point, normal;
-  double t;
-  int frontface;
-} hitrecord;
 
 void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->frontface = v3dot(r.dir, outwardnormal) < 0;

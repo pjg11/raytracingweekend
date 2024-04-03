@@ -45,10 +45,11 @@ vec3 v3randominterval(double min, double max) {
   return v3add(v3(min, min, min), v3scale(v3random(), max - min));
 }
 
-sphere sp(vec3 center, double radius) {
+sphere sp(vec3 center, double radius, material mat) {
   sphere s;
   s.center = center;
   s.radius = radius;
+  s.mat = mat;
   return s;
 }
 
