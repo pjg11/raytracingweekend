@@ -21,10 +21,12 @@ typedef struct {
   int (*scatter)(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered);
   vec3 albedo;
   double fuzz;
+  double ir;
 } material;
 
 material lambertian(vec3 albedo);
 material metal(vec3 albedo, double fuzz);
+material dielectric(double ir);
 
 struct hitrecord {
   vec3 point, normal;

@@ -147,6 +147,13 @@ int spherelisthit(spherelist *l, ray r, double tmin, double tmax,
 // Material functions
 vec3 reflect(vec3 v, vec3 n) { return v3sub(v, v3scale(n, 2 * v3dot(v, n))); }
 
+vec3 refract(vec3 uv, vec3 n, double etaioveretat) {
+    double costheta = fmin(v3dot(v3neg(uv), n), 1.0);
+    vec3 routperp = v3scale(v3add(uv, v3scale(n, costheta)), etaioveretat),
+         routparallel = v3scale(n, -sqrt(fabs(1 - v3dot(routperp, routperp))));
+		return v3add(routperp, routparallel);
+}
+
 int lambertianscatter(ray in, hitrecord *rec, vec3 *attenuation,
                       ray *scattered) {
   material mat = rec->mat;
@@ -182,6 +189,28 @@ material metal(vec3 albedo, double fuzz) {
   mat.scatter = &metalscatter;
   mat.albedo = albedo;
   mat.fuzz = fuzz > 1 ? 1 : fuzz;
+  return mat;
+}
+
+int dielectricscatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
+	material mat = rec->mat;
+	double refractionratio = rec->frontface ? 1/mat.ir : mat.ir;
+	*attenuation = v3(1, 1, 1);
+	vec3 unitdir = v3unit(in.dir);
+	double costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1),
+	       sintheta = sqrt(1 - costheta * costheta);
+	
+	scattered->orig = rec->point;
+	scattered->dir = refractionratio * sintheta > 10
+	                 ? reflect(unitdir, rec->normal)
+	                 : refract(unitdir, rec->normal, refractionratio);
+	return 1;
+}
+
+material dielectric(double ir) {
+	material mat = {0};
+  mat.scatter = &dielectricscatter;
+  mat.ir = ir;
   return mat;
 }
 
