@@ -54,9 +54,11 @@ typedef struct {
   double aspectratio, vfov;
   int imagewidth, samplesperpixel, maxdepth;
   vec3 lookfrom, lookat, vup;
+  double defocusangle, focusdist;
 
   int imageheight;
-  vec3 center, pixel100loc, pixeldelu, pixeldelv, u, w, v;
+  vec3 center, pixel100loc, pixeldelu, pixeldelv, 
+       u, w, v, defdisku, defdiskv;
 } camera;
 
 void render(camera *c, spherelist *world);

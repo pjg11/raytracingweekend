@@ -57,8 +57,8 @@ vec3 v3scale(vec3 v, double c) {
   return v;
 }
 
-double v3length(vec3 v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
 double v3dot(vec3 v, vec3 w) { return v.x * w.x + v.y * w.y + v.z * w.z; }
+double v3length(vec3 v) { return sqrt(v3dot(v,v)); }
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
 vec3 v3cross(vec3 v, vec3 w) {
@@ -78,9 +78,17 @@ vec3 v3randomunit(void) {
   vec3 v;
   do
     v = v3randominterval(-1, 1);
-  while (v3dot(v, v) >= 1);
+  while (v3dot(v, v) > 1);
   return v3unit(v);
 }
+
+vec3 v3randomunitdisk(void) {
+   vec3 v;
+   do
+     v = v3add(v3(-1, -1, 0), v3scale(v3(randomdouble(), randomdouble(), 0), 2));
+   while (v3dot(v, v) > 1);
+   return v3unit(v);
+ }
 
 int v3nearzero(vec3 v) {
   double s = 1e-8;
@@ -234,11 +242,20 @@ vec3 pixelsamplesquare(camera *c) {
   return v3add(v3scale(c->pixeldelu, px), v3scale(c->pixeldelv, py));
 }
 
+vec3 defocusdisksample(camera *c) {
+   vec3 p = v3randomunitdisk();
+   return v3add(c->center, v3add(v3scale(c->defdisku, p.x), 
+                                 v3scale(c->defdiskv, p.y)));
+}
+
 ray getray(camera *c, int i, int j) {
   vec3 pixelcenter = v3add(c->pixel100loc, v3add(v3scale(c->pixeldelu, i),
                                                  v3scale(c->pixeldelv, j)));
   vec3 pixelsample = v3add(pixelcenter, pixelsamplesquare(c));
-  ray r = {c->center, v3sub(pixelsample, c->center)};
+
+	ray r;
+	r.orig = (c->defocusangle <= 0) ? c->center : defocusdisksample(c);
+	r.dir = v3sub(pixelsample, r.orig);
   return r;
 }
 
@@ -272,7 +289,7 @@ void writecolor(FILE *out, vec3 color, int samplesperpixel) {
 }
 
 void initialize(camera *c) {
-  double focallength, viewportheight, viewportwidth, h;
+  double viewportheight, viewportwidth, h, defocusradius;
   vec3 viewportu, viewportv, viewportupperleft;
 
   c->imageheight = c->imagewidth / c->aspectratio;
@@ -281,9 +298,8 @@ void initialize(camera *c) {
 
   c->center = c->lookfrom;
 
-  focallength = v3length(v3sub(c->lookfrom, c->lookat));
   h = tan(degtorad(c->vfov) / 2);
-  viewportheight = 2 * h * focallength;
+  viewportheight = 2 * h * c->focusdist;
   viewportwidth = viewportheight * ((double)c->imagewidth / c->imageheight);
 
   c->w = v3unit(v3sub(c->lookfrom, c->lookat));
@@ -295,11 +311,17 @@ void initialize(camera *c) {
   c->pixeldelu = v3scale(viewportu, 1.0 / c->imagewidth);
   c->pixeldelv = v3scale(viewportv, 1.0 / c->imageheight);
 
-  viewportupperleft = v3sub(v3sub(v3sub(c->center, v3scale(c->w, focallength)),
+  viewportupperleft = v3sub(v3sub(v3sub(c->center, v3scale(c->w, c->focusdist)),
                                   v3scale(viewportu, 0.5)),
                             v3scale(viewportv, 0.5));
+
   c->pixel100loc =
       v3add(viewportupperleft, v3scale(v3add(c->pixeldelu, c->pixeldelv), 0.5));
+
+  defocusradius = c->focusdist * tan(degtorad(c->defocusangle / 2));
+	c->defdisku = v3scale(c->u, defocusradius);
+	c->defdiskv = v3scale(c->v, defocusradius);
+  
 }
 
 void render(camera *c, spherelist *world) {

@@ -2,7 +2,7 @@
 
 int main(void) {
 
-  camera cam = { 1, 100, 10, 10, 90, {0, 0, -1}, {0, 0, 0}, { 0, 1, 0 } };
+  camera cam = { 1, 100, 10, 10, 90, {0, 0, -1}, {0, 0, 0}, { 0, 1, 0 }, 0, 10 };
   spherelist world = {0};
   material ground = lambertian(v3(0.8, 0.8, 0)),
            center = lambertian(v3(0.1, 0.2, 0.5)), left = dielectric(1.5),
@@ -19,12 +19,16 @@ int main(void) {
   cam.samplesperpixel = 100;
   cam.maxdepth = 50;
 
-  cam.vfov = 90;
+  cam.vfov = 20;
   cam.lookfrom = v3(-2, 2, 1);
   cam.lookat = v3(0, 0, -1);
   cam.vup = v3(0, 1, 0);
+
+  cam.defocusangle = 10.0;
+  cam.focusdist = 3.4;
 
   render(&cam, &world);
   
   return 0;
 }
+
