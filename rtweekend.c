@@ -12,6 +12,7 @@ double clamp(double x) {
 }
 
 double togamma(double linear) { return sqrt(linear); }
+double degtorad(double deg) { return M_PI * deg / 180.0; }
 
 // Vector functions
 
@@ -59,6 +60,11 @@ vec3 v3scale(vec3 v, double c) {
 double v3length(vec3 v) { return sqrt(v.x * v.x + v.y * v.y + v.z * v.z); }
 double v3dot(vec3 v, vec3 w) { return v.x * w.x + v.y * w.y + v.z * w.z; }
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
+
+vec3 v3cross(vec3 v, vec3 w) {
+  return v3(v.y * w.z - v.z * w.y, v.z * w.x - v.x * w.z,
+	          v.x * w.y - v.y * w.x);
+}
 
 vec3 v3random(void) {
   return v3(randomdouble(), randomdouble(), randomdouble());
@@ -266,26 +272,32 @@ void writecolor(FILE *out, vec3 color, int samplesperpixel) {
 }
 
 void initialize(camera *c) {
-  double focallength = 1, viewportheight = 2, viewportwidth;
+  double focallength, viewportheight, viewportwidth, h;
   vec3 viewportu, viewportv, viewportupperleft;
 
   c->imageheight = c->imagewidth / c->aspectratio;
-
-  if (c->imageheight < 1) {
+  if (c->imageheight < 1)
     c->imageheight = 1;
-  }
 
-  viewportwidth = viewportheight * ((double)(c->imagewidth) / c->imageheight);
-  viewportu = v3(viewportwidth, 0, 0);
-  viewportv = v3(0, -viewportheight, 0);
+  c->center = c->lookfrom;
 
+  focallength = v3length(v3sub(c->lookfrom, c->lookat));
+  h = tan(degtorad(c->vfov) / 2);
+  viewportheight = 2 * h * focallength;
+  viewportwidth = viewportheight * ((double)c->imagewidth / c->imageheight);
+
+  c->w = v3unit(v3sub(c->lookfrom, c->lookat));
+  c->u = v3unit(v3cross(c->vup, c->w));
+  c->v = v3cross(c->w, c->u);
+
+  viewportu = v3scale(c->u, viewportwidth);
+  viewportv = v3scale(v3neg(c->v), viewportheight);
   c->pixeldelu = v3scale(viewportu, 1.0 / c->imagewidth);
   c->pixeldelv = v3scale(viewportv, 1.0 / c->imageheight);
 
-  viewportupperleft = v3sub(
-      v3sub(v3sub(c->center, v3(0, 0, focallength)), v3scale(viewportu, 0.5)),
-      v3scale(viewportv, 0.5));
-
+  viewportupperleft = v3sub(v3sub(v3sub(c->center, v3scale(c->w, focallength)),
+                                  v3scale(viewportu, 0.5)),
+                            v3scale(viewportv, 0.5));
   c->pixel100loc =
       v3add(viewportupperleft, v3scale(v3add(c->pixeldelu, c->pixeldelv), 0.5));
 }

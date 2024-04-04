@@ -51,9 +51,12 @@ typedef struct {
 void spherelistadd(spherelist *l, sphere s);
 
 typedef struct {
-  double aspectratio;
-  int imageheight, samplesperpixel, maxdepth, imagewidth;
-  vec3 center, pixel100loc, pixeldelu, pixeldelv;
+  double aspectratio, vfov;
+  int imagewidth, samplesperpixel, maxdepth;
+  vec3 lookfrom, lookat, vup;
+
+  int imageheight;
+  vec3 center, pixel100loc, pixeldelu, pixeldelv, u, w, v;
 } camera;
 
 void render(camera *c, spherelist *world);
