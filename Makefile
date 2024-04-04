@@ -1,4 +1,4 @@
-CFLAGS+=-Wall -Werror -pedantic -std=gnu99
+CFLAGS+=-Wall -Werror -pedantic -std=gnu99 -O2 -flto
 LDLIBS+=-lm
 
 all: main

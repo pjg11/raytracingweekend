@@ -1,6 +1,7 @@
 #include "rtweekend.h"
 
 double randomdouble(void) { return rand() / (RAND_MAX + 1.0); }
+double randomintervaldouble(double min, double max) { return min + (max-min) * randomdouble(); }
 
 double clamp(double x) {
   double tmin = 0.000, tmax = 0.999;
@@ -331,7 +332,7 @@ void render(camera *c, spherelist *world) {
   printf("P3\n%d %d\n255\n", c->imagewidth, c->imageheight);
 
   for (j = 0; j < c->imageheight; j++) {
-    fprintf(stderr, "\rScanlines remaining: %d ", c->imageheight - j);
+    // fprintf(stderr, "\rScanlines remaining: %d ", c->imageheight - j);
     for (i = 0; i < c->imagewidth; i++) {
       vec3 pixelcolor = v3(0, 0, 0);
       for (sample = 0; sample < c->samplesperpixel; ++sample) {
@@ -342,5 +343,5 @@ void render(camera *c, spherelist *world) {
     }
   }
 
-  fprintf(stderr, "\rDone.                       \n");
+  // fprintf(stderr, "\rDone.                       \n");
 }
