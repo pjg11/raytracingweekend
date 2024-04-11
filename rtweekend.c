@@ -64,7 +64,7 @@ vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
 vec3 v3cross(vec3 v, vec3 w) {
   return v3(v.y * w.z - v.z * w.y, v.z * w.x - v.x * w.z,
-	          v.x * w.y - v.y * w.x);
+            v.x * w.y - v.y * w.x);
 }
 
 vec3 v3random(void) {
@@ -166,11 +166,11 @@ vec3 refract(vec3 uv, vec3 n, double etaioveretat) {
     double costheta = fmin(v3dot(v3neg(uv), n), 1.0);
     vec3 routperp = v3scale(v3add(uv, v3scale(n, costheta)), etaioveretat),
          routparallel = v3scale(n, -sqrt(fabs(1 - v3dot(routperp, routperp))));
-		return v3add(routperp, routparallel);
+    return v3add(routperp, routparallel);
 }
 
 double reflectance(double cosine, double refidx) {
-	double r0 = (1.0 - refidx) / (1.0 + refidx);
+  double r0 = (1.0 - refidx) / (1.0 + refidx);
   r0 *= r0;
   return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
 }
@@ -214,23 +214,23 @@ material metal(vec3 albedo, double fuzz) {
 }
 
 int dielectricscatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
-	material mat = rec->mat;
-	double refractionratio = rec->frontface ? 1.0/mat.ir : mat.ir;
-	*attenuation = v3(1, 1, 1);
-	vec3 unitdir = v3unit(in.dir);
-	double costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1.0),
-	       sintheta = sqrt(1.0 - costheta * costheta);
-	
-	scattered->orig = rec->point;
-	scattered->dir = refractionratio * sintheta > 1.0 ||
-	                 reflectance(costheta, refractionratio) > randomdouble()
-	             ? reflect(unitdir, rec->normal)
-	             : refract(unitdir, rec->normal, refractionratio);
-	return 1;
+  material mat = rec->mat;
+  double refractionratio = rec->frontface ? 1.0/mat.ir : mat.ir;
+  *attenuation = v3(1, 1, 1);
+  vec3 unitdir = v3unit(in.dir);
+  double costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1.0),
+         sintheta = sqrt(1.0 - costheta * costheta);
+  
+  scattered->orig = rec->point;
+  scattered->dir = refractionratio * sintheta > 1.0 ||
+                   reflectance(costheta, refractionratio) > randomdouble()
+               ? reflect(unitdir, rec->normal)
+               : refract(unitdir, rec->normal, refractionratio);
+  return 1;
 }
 
 material dielectric(double ir) {
-	material mat = {0};
+  material mat = {0};
   mat.scatter = &dielectricscatter;
   mat.ir = ir;
   return mat;
@@ -254,9 +254,9 @@ ray getray(camera *c, int i, int j) {
                                                  v3scale(c->pixeldelv, j)));
   vec3 pixelsample = v3add(pixelcenter, pixelsamplesquare(c));
 
-	ray r;
-	r.orig = (c->defocusangle <= 0) ? c->center : defocusdisksample(c);
-	r.dir = v3sub(pixelsample, r.orig);
+  ray r;
+  r.orig = (c->defocusangle <= 0) ? c->center : defocusdisksample(c);
+  r.dir = v3sub(pixelsample, r.orig);
   return r;
 }
 
@@ -320,28 +320,57 @@ void initialize(camera *c) {
       v3add(viewportupperleft, v3scale(v3add(c->pixeldelu, c->pixeldelv), 0.5));
 
   defocusradius = c->focusdist * tan(degtorad(c->defocusangle / 2));
-	c->defdisku = v3scale(c->u, defocusradius);
-	c->defdiskv = v3scale(c->v, defocusradius);
+  c->defdisku = v3scale(c->u, defocusradius);
+  c->defdiskv = v3scale(c->v, defocusradius);
   
 }
 
+void *pixelrender(void *args) {
+  int sample;
+  ray r;
+  vec3 pixelcolor = v3(0, 0, 0);
+  threaddata *td = (threaddata *) args;
+  
+  for (sample = 0; sample < td->c->samplesperpixel / NTHREADS; ++sample) {
+    r = getray(td->c, td->i, td->j);
+    pixelcolor = v3add(pixelcolor, raycolor(r, td->c->maxdepth, td->world));
+  }
+  
+  *(td->pixelcolor) = v3add(*(td->pixelcolor), pixelcolor);
+  return 0;
+}
+
 void render(camera *c, spherelist *world) {
-  int i, j, sample;
+  int i, j, k;
+  pthread_t threads[NTHREADS];
   initialize(c);
 
   printf("P3\n%d %d\n255\n", c->imagewidth, c->imageheight);
 
   for (j = 0; j < c->imageheight; j++) {
-    // fprintf(stderr, "\rScanlines remaining: %d ", c->imageheight - j);
+//     fprintf(stderr, "\rScanlines remaining: %d ", c->imageheight - j);
     for (i = 0; i < c->imagewidth; i++) {
       vec3 pixelcolor = v3(0, 0, 0);
-      for (sample = 0; sample < c->samplesperpixel; ++sample) {
-        ray r = getray(c, i, j);
-        pixelcolor = v3add(pixelcolor, raycolor(r, c->maxdepth, world));
+      threaddata args = { c, world, i, j, &pixelcolor };
+      
+      for (k = 0; k < NTHREADS; k++) {
+        int err = pthread_create(threads + k, 0, pixelrender, &args);
+        if(err) {
+          printf("error: pthread_create\n");
+          return;
+        }
       }
+      
+      for (k = 0; k < NTHREADS; k++) {
+        int err = pthread_join(threads[k], NULL);
+        if(err) {
+          printf("error: pthread_join %d\n", err);
+          return;
+        }
+      }
+      
       writecolor(stdout, pixelcolor, c->samplesperpixel);
     }
   }
-
-  // fprintf(stderr, "\rDone.                       \n");
+//   fprintf(stderr, "\rDone.                       \n");
 }

@@ -1,10 +1,8 @@
 #include "rtweekend.h"
 
 int main(void) {
-	spherelist world = {0};
+  spherelist world = {0};
   camera cam = { 1, 100, 10, 10, 90, {0, 0, -1}, {0, 0, 0}, { 0, 1, 0 }, 0, 10 };
-
-  // spherelistadd(&world, sp(v3(0, -100.5, 1), 100, ground));
 
   material ground = lambertian(v3(0.5, 0.5, 0.5));
   spherelistadd(&world, sp(v3(0, -1000, 0), 1000, ground));

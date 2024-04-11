@@ -4,6 +4,9 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+
+#define NTHREADS 8
 
 double randomdouble(void);
 double randomintervaldouble(double min, double max);
@@ -79,5 +82,13 @@ typedef struct {
 } camera;
 
 void render(camera *c, spherelist *world);
+
+typedef struct {
+  camera *c;
+  spherelist *world;
+  int i, j;
+  vec3 *pixelcolor;
+  
+} threaddata;
 
 #endif // RTWEEKEND_H
