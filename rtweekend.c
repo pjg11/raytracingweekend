@@ -76,17 +76,17 @@ vec3 v3randominterval(double min, double max) {
 }
 
 vec3 v3randomunit(void) {
-  vec3 v;
-  do
-    v = v3randominterval(-1, 1);
-  while (v3dot(v, v) > 1);
-  return v3unit(v);
+  while (1) {
+    vec3 v = v3randominterval(-1, 1);
+    if (v3dot(v, v) < 1)
+      return v3unit(v);
+  }
 }
 
 vec3 v3randomunitdisk(void) {
    vec3 v;
    do
-     v = v3add(v3(-1, -1, 0), v3scale(v3(randomdouble(), randomdouble(), 0), 2));
+     v = v3randominterval(-1, 1);
    while (v3dot(v, v) > 1);
    return v3unit(v);
  }
