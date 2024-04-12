@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <string.h>
 
 #define NTHREADS 8
 
@@ -86,9 +87,8 @@ void render(camera *c, spherelist *world);
 typedef struct {
   camera *c;
   spherelist *world;
-  int i, j;
-  vec3 *pixelcolor;
-  
+  int start, end, j;
+  vec3 *scanline;
 } threaddata;
 
 #endif // RTWEEKEND_H

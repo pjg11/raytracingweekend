@@ -325,52 +325,68 @@ void initialize(camera *c) {
   
 }
 
-void *pixelrender(void *args) {
-  int sample;
-  ray r;
-  vec3 pixelcolor = v3(0, 0, 0);
+void *pixelsrender(void *args) {
   threaddata *td = (threaddata *) args;
+  for (int i = td->start; i < td->end; i++) {
+    vec3 pixelcolor = v3(0, 0, 0);
   
-  for (sample = 0; sample < td->c->samplesperpixel / NTHREADS; ++sample) {
-    r = getray(td->c, td->i, td->j);
-    pixelcolor = v3add(pixelcolor, raycolor(r, td->c->maxdepth, td->world));
+    for (int sample = 0; sample < td->c->samplesperpixel; ++sample) {
+      ray r = getray(td->c, i, td->j);
+      pixelcolor = v3add(pixelcolor, raycolor(r, td->c->maxdepth, td->world));
+    }
+	memcpy(td->scanline + i, &pixelcolor, sizeof(pixelcolor));
   }
-  
-  *(td->pixelcolor) = v3add(*(td->pixelcolor), pixelcolor);
   return 0;
 }
 
 void render(camera *c, spherelist *world) {
-  int i, j, k;
+  int j, k, chunksize = c->imagewidth / NTHREADS;
   pthread_t threads[NTHREADS];
   initialize(c);
+  threaddata args = {
+    .c = c,
+    .world = world,
+    .start = 0,
+    .end = 0,
+    .j = 0,
+    .scanline = NULL
+  };
+  threaddata threadargs[NTHREADS];
+  
+  for (int i = 0; i < NTHREADS; i++) {
+    memcpy(threadargs + i, &args, sizeof(args));
+  }
 
   printf("P3\n%d %d\n255\n", c->imagewidth, c->imageheight);
-
   for (j = 0; j < c->imageheight; j++) {
-//     fprintf(stderr, "\rScanlines remaining: %d ", c->imageheight - j);
-    for (i = 0; i < c->imagewidth; i++) {
-      vec3 pixelcolor = v3(0, 0, 0);
-      threaddata args = { c, world, i, j, &pixelcolor };
-      
-      for (k = 0; k < NTHREADS; k++) {
-        int err = pthread_create(threads + k, 0, pixelrender, &args);
-        if(err) {
-          printf("error: pthread_create\n");
-          return;
-        }
+  
+    vec3 *scanline = calloc(c->imagewidth, sizeof(*scanline));
+    
+    for (k = 0; k < NTHREADS; k++) {
+      int start = k * chunksize;
+      threadargs[k].start = k * chunksize;
+      threadargs[k].end = start + chunksize;
+      threadargs[k].j = j;
+      threadargs[k].scanline = scanline;
+      int err = pthread_create(&threads[k], NULL, pixelsrender, &threadargs[k]);
+      if(err) {
+        printf("error: pthread_create\n");
+        return;
       }
-      
-      for (k = 0; k < NTHREADS; k++) {
-        int err = pthread_join(threads[k], NULL);
-        if(err) {
-          printf("error: pthread_join %d\n", err);
-          return;
-        }
-      }
-      
-      writecolor(stdout, pixelcolor, c->samplesperpixel);
     }
-  }
-//   fprintf(stderr, "\rDone.                       \n");
+
+    for (k = 0; k < NTHREADS; k++) {
+      int err = pthread_join(threads[k], NULL);
+      if(err) {
+        printf("error: pthread_join %d\n", err);
+        return;
+      }
+    }
+    
+    for (k = 0; k < c->imagewidth; k++) {
+      writecolor(stdout, scanline[k], c->samplesperpixel);
+    }
+    
+    free(scanline);
+  } 
 }
