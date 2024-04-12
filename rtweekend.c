@@ -83,12 +83,12 @@ vec3 v3randomunit(void) {
 }
 
 vec3 v3randomunitdisk(void) {
-   vec3 v;
-   do
-     v = v3randominterval(-1, 1);
-   while (v3dot(v, v) > 1);
-   return v3unit(v);
- }
+  while (1) {
+    vec3 v = v3(-1.0 + 2.0 * randomdouble(), -1.0 + 2.0 * randomdouble(), 0);
+    if (v3dot(v, v) < 1)
+      return v;
+  }
+}
 
 int v3nearzero(vec3 v) {
   double s = 1e-8;
@@ -343,12 +343,13 @@ void *linesrender(void *args) {
 }
 
 void render(camera *c, spherelist *world) {
-  int i, k;
+  initialize(c);
+  int i, k, npixels = c->imageheight * c->imagewidth;
   pthread_t threads[NTHREADS];
   vec3 *pixels;
   threaddata threadargs[NTHREADS];
 
-  pixels = calloc(c->imageheight * c->imagewidth, sizeof(*pixels));
+  pixels = calloc(npixels, sizeof(*pixels));
 
   threaddata *args;
   
@@ -382,7 +383,7 @@ void render(camera *c, spherelist *world) {
     }
   }
   
-  for (i = 0; i < c->imageheight * c->imagewidth; i++) {
+  for (i = 0; i < npixels; i++) {
     writecolor(stdout, pixels[i], c->samplesperpixel);
   }
   free(pixels);
