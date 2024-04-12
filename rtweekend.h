@@ -87,8 +87,8 @@ void render(camera *c, spherelist *world);
 typedef struct {
   camera *c;
   spherelist *world;
-  int start, end, j;
-  vec3 *scanline;
+  int scanline;
+  vec3 *pixels;
 } threaddata;
 
 #endif // RTWEEKEND_H
