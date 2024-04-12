@@ -16,7 +16,6 @@ double togamma(double linear) { return sqrt(linear); }
 double degtorad(double deg) { return M_PI * deg / 180.0; }
 
 // Vector functions
-
 vec3 v3(double x, double y, double z) {
   vec3 v;
   v.x = x;
@@ -327,7 +326,7 @@ void initialize(camera *c) {
 
 void *linesrender(void *args) {
   threaddata *td = (threaddata *) args;
-  for (int j = td->start; j < td->end; j++) {
+  for (int j = td->num; j < td->c->imageheight; j += td->step) {
     for (int i = 0; i < td->c->imagewidth; i++) {
       vec3 pixelcolor = v3(0, 0, 0);
 
@@ -344,35 +343,30 @@ void *linesrender(void *args) {
 }
 
 void render(camera *c, spherelist *world) {
-  int i, k, chunksize;
+  int i, k;
   pthread_t threads[NTHREADS];
   vec3 *pixels;
   threaddata threadargs[NTHREADS];
 
   pixels = calloc(c->imageheight * c->imagewidth, sizeof(*pixels));
 
-  threaddata args = {
-    .c = c,
-    .world = world,
-    .start = 0,
-    .end = 0,
-    .pixels = pixels
-  };
+  threaddata *args;
   
   initialize(c);
-  chunksize = ceil(c->imageheight / (float) NTHREADS);
-  
-  for (i = 0; i < NTHREADS; i++) {
-    memcpy(threadargs + i, &args, sizeof(args));
+
+  for (args = threadargs; args < threadargs + (sizeof(threadargs) / sizeof(*(threadargs))); args++) {
+    args->c = c;
+    args->world = world;
+    args->num = 0;
+    args->step = NTHREADS;
+    args->pixels = pixels;
   }
   
   printf("P3\n%d %d\n255\n", c->imagewidth, c->imageheight);
 
   for(k = 0; k < NTHREADS; k++) {
-    threadargs[k].start = k * chunksize;
-    threadargs[k].end = threadargs[k].start + chunksize;
+    threadargs[k].num = k;
     threadargs[k].pixels = pixels;
-//     printf("%d %d\n", threadargs[k].start, threadargs[k].end);
     int err = pthread_create(threads + k, NULL, linesrender, threadargs + k);
     if(err) {
       fprintf(stderr, "error: pthread_create\n");
@@ -392,7 +386,4 @@ void render(camera *c, spherelist *world) {
     writecolor(stdout, pixels[i], c->samplesperpixel);
   }
   free(pixels);
-
-//   fprintf(stderr, "\rDone                                \n");
-
 }
