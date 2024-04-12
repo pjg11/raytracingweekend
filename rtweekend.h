@@ -87,7 +87,7 @@ void render(camera *c, spherelist *world);
 typedef struct {
   camera *c;
   spherelist *world;
-  int scanline;
+  int start, end;
   vec3 *pixels;
 } threaddata;
 
