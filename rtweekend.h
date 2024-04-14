@@ -2,15 +2,14 @@
 #define RTWEEKEND_H
 
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 
 #define NTHREADS 8
 
 double randomdouble(void);
-double randomintervaldouble(double min, double max);
 
 typedef struct {
   double x, y, z;
@@ -31,30 +30,38 @@ vec3 v3randominterval(double min, double max);
 vec3 v3randomunit(void);
 vec3 v3randomunitdisk(void);
 
-
 typedef struct {
   vec3 orig, dir;
 } ray;
 
-typedef struct hitrecord hitrecord;
+enum material { LAMBERTIAN, METAL, DIELECTRIC };
 
 typedef struct {
-  int (*scatter)(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered);
-  vec3 albedo;
-  double fuzz;
-  double ir;
+  enum material type;
+  union {
+    struct lambertian {
+      vec3 albedo;
+    } lambertian;
+    struct metal {
+      vec3 albedo;
+      double fuzz;
+    } metal;
+    struct dielectric {
+      double ir;
+    } dielectric;
+  } data;
 } material;
 
 material lambertian(vec3 albedo);
 material metal(vec3 albedo, double fuzz);
 material dielectric(double ir);
 
-struct hitrecord {
+typedef struct {
   vec3 point, normal;
   double t;
   int frontface;
   material mat;
-};
+} hitrecord;
 
 typedef struct {
   vec3 center;
@@ -78,8 +85,7 @@ typedef struct {
   double defocusangle, focusdist;
 
   int imageheight;
-  vec3 center, pixel100loc, pixeldelu, pixeldelv, 
-       u, w, v, defdisku, defdiskv;
+  vec3 center, pixel100loc, pixeldelu, pixeldelv, u, w, v, defdisku, defdiskv;
 } camera;
 
 void render(camera *c, spherelist *world);
