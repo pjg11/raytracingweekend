@@ -1,14 +1,22 @@
 #include "rtweekend.h"
 
-int main(void) {
+int main(int argc, char *argv[]) {
   spherelist world = {0};
   camera cam = {1, 100, 10, 10, 90, {0, 0, -1}, {0, 0, 0}, {0, 1, 0}, 0, 10};
+  int a = -11, b = -11, small = 0;
+
+  if (argc == 2 && !strcmp(argv[1], "-small"))
+    small = 1;
+  else if (argc > 1) {
+    fprintf(stderr, "Usage: main [-small]\n");
+    return 1;
+  }
 
   material ground = lambertian(v3(0.5, 0.5, 0.5));
   spherelistadd(&world, sp(v3(0, -1000, 0), 1000, ground));
 
-  for (int a = -11; a < 11; a++) {
-    for (int b = -11; b < 11; b++) {
+  for (a = -11; a < 11; a++) {
+    for (b = -11; b < 11; b++) {
       double choosemat = randomdouble();
       vec3 center = v3(a + 0.9 * randomdouble(), 0.2, b + 0.9 * randomdouble());
 
@@ -42,8 +50,8 @@ int main(void) {
   spherelistadd(&world, sp(v3(4, 1, 0), 1.0, material3));
 
   cam.aspectratio = 16.0 / 9.0;
-  cam.imagewidth = 1200;
-  cam.samplesperpixel = 500;
+  cam.imagewidth = small ? 400 : 1200;
+  cam.samplesperpixel = small ? 100 : 500;
   cam.maxdepth = 50;
 
   cam.vfov = 20;

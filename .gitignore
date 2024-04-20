@@ -2,3 +2,4 @@ main
 *.ppm
 *.o
 raytracingweekend.bbprojectd/
+_*

@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NTHREADS 8
+#define NTHREADS 4
 
 double randomdouble(void);
 
