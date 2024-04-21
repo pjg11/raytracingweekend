@@ -1,12 +1,28 @@
 #include "rtweekend.h"
 
-double randomdouble(void) { return rand() / (RAND_MAX + 1.0); }
+const double pi = 3.1415926535897932385;
+
+// From https://stackoverflow.com/a/26237777
+
+double MAX_RAND = 0x7FFF;
+unsigned int g_seed;
+
+inline void fast_srand(int seed) {
+  g_seed = seed;
+}
+
+inline int fast_rand(void) {
+  g_seed = (214013*g_seed+2531011);
+  return (g_seed>>16)&0x7FFF;
+}
+
+double randomdouble(void) { return fast_rand() / (MAX_RAND + 1.0); }
 
 double clamp(double x) {
   double tmin = 0.000, tmax = 0.999;
   return x < tmin ? tmin : x > tmax ? tmax : x;
 }
-double degtorad(double deg) { return M_PI * deg / 180.0; }
+double degtorad(double deg) { return pi * deg / 180.0; }
 
 // Vector functions
 vec3 v3(double x, double y, double z) {
