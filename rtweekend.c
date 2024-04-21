@@ -280,23 +280,22 @@ ray getray(camera *c, int i, int j) {
 
 vec3 raycolor(ray r, int depth, spherelist *world) {
   hitrecord rec;
-  vec3 black = {0};
+  vec3 color, attenuation = {1,1,1};
 
-  if (depth <= 0)
-    return black;
-
-  if (spherelisthit(world, r, 0.001, INFINITY, &rec)) {
-    ray scattered;
-    vec3 attenuation;
-    if (scatter(r, &rec, &attenuation, &scattered))
-      return v3mul(attenuation, raycolor(scattered, depth - 1, world));
-    else
-      return black;
-  } else {
-    vec3 dir = v3unit(r.dir);
-    double a = 0.5 * (dir.y + 1);
-    return v3add(v3scale(v3(1, 1, 1), 1 - a), v3scale(v3(0.5, 0.7, 1), a));
+  while(depth > 0) {
+    if (spherelisthit(world, r, 0.001, INFINITY, &rec)) {
+      if (scatter(r, &rec, &color, &r)) {
+        attenuation = v3mul(attenuation, color);
+        depth -= 1;
+      }
+    }
+    else {
+      vec3 dir = v3unit(r.dir);
+      double a = 0.5 * (dir.y + 1);
+      return v3mul(attenuation, v3add(v3scale(v3(1, 1, 1), 1 - a), v3scale(v3(0.5, 0.7, 1), a)));
+    }
   }
+  return v3(0,0,0);
 }
 
 void writecolor(FILE *out, vec3 color, int samplesperpixel) {
