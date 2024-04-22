@@ -4,7 +4,9 @@ int main(int argc, char *argv[]) {
   spherelist world = {0};
   camera cam = {1, 100, 10, 10, 90, {0, 0, -1}, {0, 0, 0}, {0, 1, 0}, 0, 10};
   int a = -11, b = -11, small = 0;
-  
+
+  fast_srand(1713755957);
+
   if (argc == 2 && !strcmp(argv[1], "-small"))
     small = 1;
   else if (argc > 1) {
