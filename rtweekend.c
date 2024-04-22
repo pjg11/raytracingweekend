@@ -1,31 +1,46 @@
 #include "rtweekend.h"
 
-const double pi = 3.1415926535897932385;
+const float pi = 3.1415926535897932385;
+const float MAX_RAND = 0x7FFF;
 
-// From https://stackoverflow.com/a/26237777
-
-double MAX_RAND = 0x7FFF;
-unsigned int g_seed;
-
-inline void fast_srand(int seed) {
-  g_seed = seed;
-}
-
-inline int fast_rand(void) {
-  g_seed = (214013*g_seed+2531011);
-  return (g_seed>>16)&0x7FFF;
-}
-
-double randomdouble(void) { return fast_rand() / (MAX_RAND + 1.0); }
-
-double clamp(double x) {
-  double tmin = 0.000, tmax = 0.999;
+float clamp(float x) {
+  float tmin = 0.000, tmax = 0.999;
   return x < tmin ? tmin : x > tmax ? tmax : x;
 }
-double degtorad(double deg) { return pi * deg / 180.0; }
+float degtorad(float deg) { return pi * deg / 180.0; }
 
 // Vector functions
-vec3 v3(double x, double y, double z) {
+
+static vec3 zero;
+
+#if defined(__ARM_NEON)
+
+float v3x(vec3 v) { return v[0]; }
+float v3y(vec3 v) { return v[1]; }
+float v3z(vec3 v) { return v[2]; }
+
+vec3 v3(float x, float y, float z) {
+  float32_t ar[4];
+  ar[0] = x;
+  ar[1] = y;
+  ar[2] = z;
+  ar[3] = 0;
+  return vld1q_f32(ar);
+}
+
+vec3 v3add(vec3 v, vec3 w) { return vaddq_f32(v, w); }
+vec3 v3sub(vec3 v, vec3 w) { return vsubq_f32(v, w); }
+vec3 v3mul(vec3 v, vec3 w) { return vmulq_f32(v, w); }
+vec3 v3scale(vec3 v, float c) { return vmulq_n_f32(v, c); }
+float v3dot(vec3 v, vec3 w) { return vaddvq_f32(vmulq_f32(v, w)); }
+
+#else
+
+float v3x(vec3 v) { return v.x; }
+float v3y(vec3 v) { return v.y; }
+float v3z(vec3 v) { return v.z; }
+
+vec3 v3(float x, float y, float z) {
   vec3 v;
   v.x = x;
   v.y = y;
@@ -47,11 +62,6 @@ vec3 v3sub(vec3 v, vec3 w) {
   return v;
 }
 
-vec3 v3neg(vec3 v) {
-  vec3 zero = {0};
-  return v3sub(zero, v);
-}
-
 vec3 v3mul(vec3 v, vec3 w) {
   v.x *= w.x;
   v.y *= w.y;
@@ -59,27 +69,35 @@ vec3 v3mul(vec3 v, vec3 w) {
   return v;
 }
 
-vec3 v3scale(vec3 v, double c) {
+vec3 v3scale(vec3 v, float c) {
   v.x *= c;
   v.y *= c;
   v.z *= c;
   return v;
 }
 
-double v3dot(vec3 v, vec3 w) { return v.x * w.x + v.y * w.y + v.z * w.z; }
-double v3length(vec3 v) { return sqrt(v3dot(v, v)); }
+float v3dot(vec3 v, vec3 w) { return v.x * w.x + v.y * w.y + v.z * w.z; }
+
+#endif
+
+vec3 v3neg(vec3 v) {
+  return v3sub(zero, v);
+}
+
+float v3length(vec3 v) { return sqrt(v3dot(v, v)); }
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
 vec3 v3cross(vec3 v, vec3 w) {
-  return v3(v.y * w.z - v.z * w.y, v.z * w.x - v.x * w.z,
-            v.x * w.y - v.y * w.x);
+  return v3(v3y(v) * v3z(w) - v3z(v) * v3y(w),
+            v3z(v) * v3x(w) - v3x(v) * v3z(w),
+            v3x(v) * v3y(w) - v3y(v) * v3x(w));
 }
 
 vec3 v3random(void) {
-  return v3(randomdouble(), randomdouble(), randomdouble());
+  return v3(randomfloat(), randomfloat(), randomfloat());
 }
 
-vec3 v3randominterval(double min, double max) {
+vec3 v3randominterval(float min, float max) {
   return v3add(v3(min, min, min), v3scale(v3random(), max - min));
 }
 
@@ -93,18 +111,18 @@ vec3 v3randomunit(void) {
 
 vec3 v3randomunitdisk(void) {
   while (1) {
-    vec3 v = v3(-1.0 + 2.0 * randomdouble(), -1.0 + 2.0 * randomdouble(), 0);
+    vec3 v = v3(-1.0 + 2.0 * randomfloat(), -1.0 + 2.0 * randomfloat(), 0);
     if (v3dot(v, v) < 1)
       return v;
   }
 }
 
 int v3nearzero(vec3 v) {
-  double s = 1e-8;
-  return fabs(v.x) < s && fabs(v.y) < s && fabs(v.z) < s;
+  float s = 1e-8;
+  return fabs(v3x(v)) < s && fabs(v3y(v)) < s && fabs(v3z(v)) < s;
 }
 
-vec3 rayat(ray r, double t) { return v3add(r.orig, v3scale(r.dir, t)); }
+vec3 rayat(ray r, float t) { return v3add(r.orig, v3scale(r.dir, t)); }
 
 ray r(vec3 from, vec3 to) {
   ray r;
@@ -114,7 +132,7 @@ ray r(vec3 from, vec3 to) {
 }
 
 // Sphere functions
-sphere sp(vec3 center, double radius, material mat) {
+sphere sp(vec3 center, float radius, material mat) {
   sphere s;
   s.center = center;
   s.radius = radius;
@@ -135,18 +153,18 @@ void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->normal = rec->frontface ? outwardnormal : v3neg(outwardnormal);
 }
 
-int spherehit(sphere s, ray r, double tmin, double tmax, hitrecord *rec) {
+int spherehit(sphere s, ray r, float tmin, float tmax, hitrecord *rec) {
   vec3 oc = v3sub(r.orig, s.center);
-  double a = v3dot(r.dir, r.dir);
-  double halfb = v3dot(oc, r.dir);
-  double c = v3dot(oc, oc) - s.radius * s.radius;
-  double discriminant = halfb * halfb - a * c;
+  float a = v3dot(r.dir, r.dir);
+  float halfb = v3dot(oc, r.dir);
+  float c = v3dot(oc, oc) - s.radius * s.radius;
+  float discriminant = halfb * halfb - a * c;
 
   if (discriminant < 0)
     return 0;
 
-  double sqrtd = sqrt(discriminant);
-  double root = (-halfb - sqrtd) / a;
+  float sqrtd = sqrt(discriminant);
+  float root = (-halfb - sqrtd) / a;
   if (root <= tmin || root >= tmax) {
     root = (-halfb + sqrtd) / a;
     if (root <= tmin || root >= tmax)
@@ -160,10 +178,10 @@ int spherehit(sphere s, ray r, double tmin, double tmax, hitrecord *rec) {
   return 1;
 }
 
-int spherelisthit(spherelist *l, ray r, double tmin, double tmax,
+int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
                   hitrecord *rec) {
   int hitanything = 0, i;
-  double closest = tmax;
+  float closest = tmax;
 
   for (i = 0; i < l->n; i++) {
     if (spherehit(l->spheres[i], r, tmin, closest, rec)) {
@@ -177,15 +195,15 @@ int spherelisthit(spherelist *l, ray r, double tmin, double tmax,
 // Material functions
 vec3 reflect(vec3 v, vec3 n) { return v3sub(v, v3scale(n, 2 * v3dot(v, n))); }
 
-vec3 refract(vec3 uv, vec3 n, double etaioveretat) {
-  double costheta = fmin(v3dot(v3neg(uv), n), 1.0);
+vec3 refract(vec3 uv, vec3 n, float etaioveretat) {
+  float costheta = fmin(v3dot(v3neg(uv), n), 1.0);
   vec3 routperp = v3scale(v3add(uv, v3scale(n, costheta)), etaioveretat),
        routparallel = v3scale(n, -sqrt(fabs(1 - v3dot(routperp, routperp))));
   return v3add(routperp, routparallel);
 }
 
-double reflectance(double cosine, double refidx) {
-  double r0 = (1.0 - refidx) / (1.0 + refidx);
+float reflectance(float cosine, float refidx) {
+  float r0 = (1.0 - refidx) / (1.0 + refidx);
   r0 *= r0;
   return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
 }
@@ -197,7 +215,7 @@ material lambertian(vec3 albedo) {
   return mat;
 }
 
-material metal(vec3 albedo, double fuzz) {
+material metal(vec3 albedo, float fuzz) {
   material mat;
   mat.type = METAL;
   mat.data.metal.albedo = albedo;
@@ -205,7 +223,7 @@ material metal(vec3 albedo, double fuzz) {
   return mat;
 }
 
-material dielectric(double ir) {
+material dielectric(float ir) {
   material mat;
   mat.type = DIELECTRIC;
   mat.data.dielectric.ir = ir;
@@ -237,15 +255,15 @@ int scatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
 
   case DIELECTRIC: {
     struct dielectric data = mat.data.dielectric;
-    double refractionratio = rec->frontface ? 1.0 / data.ir : data.ir;
+    float refractionratio = rec->frontface ? 1.0 / data.ir : data.ir;
     *attenuation = v3(1, 1, 1);
     vec3 unitdir = v3unit(in.dir);
-    double costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1.0),
+    float costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1.0),
            sintheta = sqrt(1.0 - costheta * costheta);
     scattered->orig = rec->point;
     scattered->dir =
         refractionratio * sintheta > 1.0 ||
-                reflectance(costheta, refractionratio) > randomdouble()
+                reflectance(costheta, refractionratio) > randomfloat()
             ? reflect(unitdir, rec->normal)
             : refract(unitdir, rec->normal, refractionratio);
     return 1;
@@ -258,15 +276,15 @@ int scatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
 
 // Camera functions
 vec3 pixelsamplesquare(camera *c) {
-  double px = -0.5 + randomdouble();
-  double py = -0.5 + randomdouble();
+  float px = -0.5 + randomfloat();
+  float py = -0.5 + randomfloat();
   return v3add(v3scale(c->pixeldelu, px), v3scale(c->pixeldelv, py));
 }
 
 vec3 defocusdisksample(camera *c) {
   vec3 p = v3randomunitdisk();
   return v3add(c->center,
-               v3add(v3scale(c->defdisku, p.x), v3scale(c->defdiskv, p.y)));
+               v3add(v3scale(c->defdisku, v3x(p)), v3scale(c->defdiskv, v3y(p))));
 }
 
 ray getray(camera *c, int i, int j) {
@@ -291,7 +309,7 @@ vec3 raycolor(ray r, int depth, spherelist *world) {
     }
     else {
       vec3 dir = v3unit(r.dir);
-      double a = 0.5 * (dir.y + 1);
+      float a = 0.5 * (v3y(dir) + 1);
       return v3mul(attenuation, v3add(v3scale(v3(1, 1, 1), 1 - a), v3scale(v3(0.5, 0.7, 1), a)));
     }
   }
@@ -301,14 +319,14 @@ vec3 raycolor(ray r, int depth, spherelist *world) {
 void writecolor(FILE *out, vec3 color, int samplesperpixel) {
   int s = 256;
   color = v3scale(color, 1.0 / samplesperpixel);
-  color = v3(clamp(sqrt(color.x)), clamp(sqrt(color.y)), clamp(sqrt(color.z)));
+  color = v3(clamp(sqrt(v3x(color))), clamp(sqrt(v3y(color))), clamp(sqrt(v3z(color))));
 
-  fprintf(out, "%d %d %d\n", (int)(s * color.x), (int)(s * color.y),
-          (int)(s * color.z));
+  fprintf(out, "%d %d %d\n", (int)(s * v3x(color)), (int)(s * v3y(color)),
+          (int)(s * v3z(color)));
 }
 
 void initialize(camera *c) {
-  double viewportheight, viewportwidth, h, defocusradius;
+  float viewportheight, viewportwidth, h, defocusradius;
   vec3 viewportu, viewportv, viewportupperleft;
 
   c->imageheight = c->imagewidth / c->aspectratio;
@@ -319,7 +337,7 @@ void initialize(camera *c) {
 
   h = tan(degtorad(c->vfov) / 2);
   viewportheight = 2 * h * c->focusdist;
-  viewportwidth = viewportheight * ((double)c->imagewidth / c->imageheight);
+  viewportwidth = viewportheight * ((float)c->imagewidth / c->imageheight);
 
   c->w = v3unit(v3sub(c->lookfrom, c->lookat));
   c->u = v3unit(v3cross(c->vup, c->w));
@@ -378,7 +396,7 @@ void render(camera *c, spherelist *world) {
     args->num = k;
     args->step = NTHREADS;
     args->pixels = pixels;
-    int err = pthread_create(threads + k, NULL, linesrender, threadargs + k);
+    int err = pthread_create(threads + k, NULL, linesrender, args);
     if (err) {
       fprintf(stderr, "error: pthread_create\n");
       return;
@@ -393,8 +411,9 @@ void render(camera *c, spherelist *world) {
     }
   }
 
-  for (i = 0; i < npixels; i++) {
-    writecolor(stdout, pixels[i], c->samplesperpixel);
+  for (i = 0; i < c->imageheight; i++) {
+    for (k = 0; k < c->imagewidth; k++)
+      writecolor(stdout, *(pixels + i * c->imagewidth + k), c->samplesperpixel);
   }
 
   free(pixels);

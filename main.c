@@ -4,7 +4,7 @@ int main(int argc, char *argv[]) {
   spherelist world = {0};
   camera cam = {1, 100, 10, 10, 90, {0, 0, -1}, {0, 0, 0}, {0, 1, 0}, 0, 10};
   int a = -11, b = -11, small = 0;
-
+  
   if (argc == 2 && !strcmp(argv[1], "-small"))
     small = 1;
   else if (argc > 1) {
@@ -17,24 +17,25 @@ int main(int argc, char *argv[]) {
 
   for (a = -11; a < 11; a++) {
     for (b = -11; b < 11; b++) {
-      double choosemat = randomdouble();
-      vec3 center = v3(a + 0.9 * randomdouble(), 0.2, b + 0.9 * randomdouble());
+      float choosemat = randomfloat();
+      float radius = 0.2;
+      vec3 center = v3(a + 0.9 * randomfloat(), radius, b + 0.9 * randomfloat());
 
       if (v3length(v3sub(center, v3(4, 0.2, 0))) > 0.9) {
         material spherematerial;
         if (choosemat < 0.8) {
           // diffuse
           spherematerial = lambertian(v3mul(v3random(), v3random()));
-          spherelistadd(&world, sp(center, 0.2, spherematerial));
+          spherelistadd(&world, sp(center, radius, spherematerial));
         } else if (choosemat < 0.95) {
           // metal
           spherematerial =
-              metal(v3randominterval(0.5, 1), 0.5 * randomdouble());
-          spherelistadd(&world, sp(center, 0.2, spherematerial));
+              metal(v3randominterval(0.5, 1), 0.5 * randomfloat());
+          spherelistadd(&world, sp(center, radius, spherematerial));
         } else {
           // glass
           spherematerial = dielectric(1.5);
-          spherelistadd(&world, sp(center, 0.2, spherematerial));
+          spherelistadd(&world, sp(center, radius, spherematerial));
         }
       }
     }
