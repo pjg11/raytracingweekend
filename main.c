@@ -21,7 +21,8 @@ int main(int argc, char *argv[]) {
     for (b = -11; b < 11; b++) {
       float choosemat = randomfloat();
       float radius = 0.2;
-      vec3 center = v3(a + 0.9 * randomfloat(), radius, b + 0.9 * randomfloat());
+      vec3 center =
+          v3(a + 0.9 * randomfloat(), radius, b + 0.9 * randomfloat());
 
       if (v3length(v3sub(center, v3(4, 0.2, 0))) > 0.9) {
         material spherematerial;
@@ -31,8 +32,7 @@ int main(int argc, char *argv[]) {
           spherelistadd(&world, sp(center, radius, spherematerial));
         } else if (choosemat < 0.95) {
           // metal
-          spherematerial =
-              metal(v3randominterval(0.5, 1), 0.5 * randomfloat());
+          spherematerial = metal(v3randominterval(0.5, 1), 0.5 * randomfloat());
           spherelistadd(&world, sp(center, radius, spherematerial));
         } else {
           // glass

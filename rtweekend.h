@@ -11,18 +11,16 @@
 #define NTHREADS 4
 #endif
 
-extern const float pi, MAX_RAND;
+extern const float pi, MAX_RAND, infinity;
 unsigned int g_seed;
 
 // From https://stackoverflow.com/a/26237777
 
-inline void fast_srand(int seed) {
-  g_seed = seed;
-}
+inline void fast_srand(int seed) { g_seed = seed; }
 
 inline int fast_rand(void) {
-  g_seed = (214013*g_seed+2531011);
-  return (g_seed>>16)&(int)MAX_RAND;
+  g_seed = (214013 * g_seed + 2531011);
+  return (g_seed >> 16) & (int)MAX_RAND;
 }
 
 inline float randomfloat(void) { return fast_rand() / (MAX_RAND + 1.0); }

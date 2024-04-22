@@ -2,6 +2,7 @@
 
 const float pi = 3.1415926535897932385;
 const float MAX_RAND = 0x7FFF;
+const float infinity = INFINITY;
 
 float clamp(float x) {
   float tmin = 0.000, tmax = 0.999;
@@ -80,9 +81,7 @@ float v3dot(vec3 v, vec3 w) { return v.x * w.x + v.y * w.y + v.z * w.z; }
 
 #endif
 
-vec3 v3neg(vec3 v) {
-  return v3sub(zero, v);
-}
+vec3 v3neg(vec3 v) { return v3sub(zero, v); }
 
 float v3length(vec3 v) { return sqrtf(v3dot(v, v)); }
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
@@ -93,9 +92,7 @@ vec3 v3cross(vec3 v, vec3 w) {
             v3x(v) * v3y(w) - v3y(v) * v3x(w));
 }
 
-vec3 v3random(void) {
-  return v3(randomfloat(), randomfloat(), randomfloat());
-}
+vec3 v3random(void) { return v3(randomfloat(), randomfloat(), randomfloat()); }
 
 vec3 v3randominterval(float min, float max) {
   return v3add(v3(min, min, min), v3scale(v3random(), max - min));
@@ -345,8 +342,8 @@ vec3 pixelsamplesquare(camera *c) {
 
 vec3 defocusdisksample(camera *c) {
   vec3 p = v3randomunitdisk();
-  return v3add(c->center,
-               v3add(v3scale(c->defdisku, v3x(p)), v3scale(c->defdiskv, v3y(p))));
+  return v3add(c->center, v3add(v3scale(c->defdisku, v3x(p)),
+                                v3scale(c->defdiskv, v3y(p))));
 }
 
 ray getray(camera *c, int i, int j) {
@@ -360,22 +357,22 @@ ray getray(camera *c, int i, int j) {
 
 vec3 raycolor(ray r, int depth, spherelist *world) {
   hitrecord rec;
-  vec3 color, attenuation = {1,1,1};
+  vec3 color, attenuation = {1, 1, 1};
 
-  while(depth > 0) {
-    if (spherelisthit(world, r, 0.001, INFINITY, &rec)) {
+  while (depth > 0) {
+    if (spherelisthit(world, r, 0.001, infinity, &rec)) {
       if (scatter(r, &rec, &color, &r)) {
         attenuation = v3mul(attenuation, color);
         depth -= 1;
       }
-    }
-    else {
+    } else {
       vec3 dir = v3unit(r.dir);
       float a = 0.5 * (v3y(dir) + 1);
-      return v3mul(attenuation, v3add(v3scale(v3(1, 1, 1), 1 - a), v3scale(v3(0.5, 0.7, 1), a)));
+      return v3mul(attenuation, v3add(v3scale(v3(1, 1, 1), 1 - a),
+                                      v3scale(v3(0.5, 0.7, 1), a)));
     }
   }
-  return v3(0,0,0);
+  return v3(0, 0, 0);
 }
 
 void writecolor(FILE *out, vec3 color, int samplesperpixel) {
@@ -424,12 +421,14 @@ void initialize(camera *c) {
 }
 
 void *linesrender(void *args) {
+  int i, j, sample;
   threaddata *td = (threaddata *)args;
   camera *c = td->c;
-  for (int j = td->num; j < c->imageheight; j += td->step) {
-    for (int i = 0; i < c->imagewidth; i++) {
+
+  for (j = td->num; j < c->imageheight; j += td->step) {
+    for (i = 0; i < c->imagewidth; i++) {
       vec3 pixelcolor = {0};
-      for (int sample = 0; sample < c->samplesperpixel; ++sample) {
+      for (sample = 0; sample < c->samplesperpixel; sample++) {
         pixelcolor = v3add(
             pixelcolor, raycolor(getray(td->c, i, j), c->maxdepth, td->world));
       }
