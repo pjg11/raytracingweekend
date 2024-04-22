@@ -84,7 +84,7 @@ vec3 v3neg(vec3 v) {
   return v3sub(zero, v);
 }
 
-float v3length(vec3 v) { return sqrt(v3dot(v, v)); }
+float v3length(vec3 v) { return sqrtf(v3dot(v, v)); }
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
 vec3 v3cross(vec3 v, vec3 w) {
@@ -119,7 +119,7 @@ vec3 v3randomunitdisk(void) {
 
 int v3nearzero(vec3 v) {
   float s = 1e-8;
-  return fabs(v3x(v)) < s && fabs(v3y(v)) < s && fabs(v3z(v)) < s;
+  return fabsf(v3x(v)) < s && fabsf(v3y(v)) < s && fabsf(v3z(v)) < s;
 }
 
 vec3 rayat(ray r, float t) { return v3add(r.orig, v3scale(r.dir, t)); }
@@ -258,16 +258,16 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
 vec3 reflect(vec3 v, vec3 n) { return v3sub(v, v3scale(n, 2 * v3dot(v, n))); }
 
 vec3 refract(vec3 uv, vec3 n, float etaioveretat) {
-  float costheta = fmin(v3dot(v3neg(uv), n), 1.0);
+  float costheta = fminf(v3dot(v3neg(uv), n), 1.0);
   vec3 routperp = v3scale(v3add(uv, v3scale(n, costheta)), etaioveretat),
-       routparallel = v3scale(n, -sqrt(fabs(1 - v3dot(routperp, routperp))));
+       routparallel = v3scale(n, -sqrtf(fabsf(1 - v3dot(routperp, routperp))));
   return v3add(routperp, routparallel);
 }
 
 float reflectance(float cosine, float refidx) {
   float r0 = (1.0 - refidx) / (1.0 + refidx);
   r0 *= r0;
-  return r0 + (1.0 - r0) * pow((1.0 - cosine), 5);
+  return r0 + (1.0 - r0) * powf((1.0 - cosine), 5);
 }
 
 material lambertian(vec3 albedo) {
@@ -320,8 +320,8 @@ int scatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
     float refractionratio = rec->frontface ? 1.0 / data.ir : data.ir;
     *attenuation = v3(1, 1, 1);
     vec3 unitdir = v3unit(in.dir);
-    float costheta = fmin(v3dot(v3neg(unitdir), rec->normal), 1.0),
-           sintheta = sqrt(1.0 - costheta * costheta);
+    float costheta = fminf(v3dot(v3neg(unitdir), rec->normal), 1.0),
+          sintheta = sqrtf(1.0 - costheta * costheta);
     scattered->orig = rec->point;
     scattered->dir =
         refractionratio * sintheta > 1.0 ||
@@ -381,7 +381,8 @@ vec3 raycolor(ray r, int depth, spherelist *world) {
 void writecolor(FILE *out, vec3 color, int samplesperpixel) {
   int s = 256;
   color = v3scale(color, 1.0 / samplesperpixel);
-  color = v3(clamp(sqrt(v3x(color))), clamp(sqrt(v3y(color))), clamp(sqrt(v3z(color))));
+  color = v3(clamp(sqrtf(v3x(color))), clamp(sqrtf(v3y(color))),
+             clamp(sqrtf(v3z(color))));
 
   fprintf(out, "%d %d %d\n", (int)(s * v3x(color)), (int)(s * v3y(color)),
           (int)(s * v3z(color)));
@@ -397,7 +398,7 @@ void initialize(camera *c) {
 
   c->center = c->lookfrom;
 
-  h = tan(degtorad(c->vfov) / 2);
+  h = tanf(degtorad(c->vfov) / 2);
   viewportheight = 2 * h * c->focusdist;
   viewportwidth = viewportheight * ((float)c->imagewidth / c->imageheight);
 
@@ -417,7 +418,7 @@ void initialize(camera *c) {
   c->pixel100loc =
       v3add(viewportupperleft, v3scale(v3add(c->pixeldelu, c->pixeldelv), 0.5));
 
-  defocusradius = c->focusdist * tan(degtorad(c->defocusangle / 2));
+  defocusradius = c->focusdist * tanf(degtorad(c->defocusangle / 2));
   c->defdisku = v3scale(c->u, defocusradius);
   c->defdiskv = v3scale(c->v, defocusradius);
 }
