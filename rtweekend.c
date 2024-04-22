@@ -136,6 +136,7 @@ sphere sp(vec3 center, float radius, material mat) {
   sphere s;
   s.center = center;
   s.radius = radius;
+  s.rsquare = radius * radius;
   s.mat = mat;
   return s;
 }
@@ -153,123 +154,104 @@ void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->normal = rec->frontface ? outwardnormal : v3neg(outwardnormal);
 }
 
-int spherehit(sphere s, ray r, float tmin, float tmax, hitrecord *rec) {
-  vec3 oc = v3sub(r.orig, s.center);
-  float a = v3dot(r.dir, r.dir);
-  float halfb = v3dot(oc, r.dir);
-  float c = v3dot(oc, oc) - s.radius * s.radius;
-  float discriminant = halfb * halfb - a * c;
-
-  if (discriminant < 0)
-    return 0;
-
-  float sqrtd = sqrt(discriminant);
-  float root = (-halfb - sqrtd) / a;
-  if (root <= tmin || root >= tmax) {
-    root = (-halfb + sqrtd) / a;
-    if (root <= tmin || root >= tmax)
-      return 0;
-  }
-
-  rec->t = root;
-  rec->point = rayat(r, rec->t);
-  setfacenormal(r, v3scale(v3sub(rec->point, s.center), 1.0 / s.radius), rec);
-  rec->mat = s.mat;
-  return 1;
-}
-
 int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
                   hitrecord *rec) {
-  int hitanything = 0, i, j;
+  int i, j;
   float closest = tmax;
   sphere *spheres = l->spheres, *s;
 
 #if defined(__ARM_NEON)
 
-  vec3 rorigx = vdupq_n_f32(r.orig[0]),
-       rorigy = vdupq_n_f32(r.orig[1]),
-       rorigz = vdupq_n_f32(r.orig[2]),
-       rdirx = vdupq_n_f32(r.dir[0]),
-       rdiry = vdupq_n_f32(r.dir[1]),
-       rdirz = vdupq_n_f32(r.dir[2]);
+  vec3 rorigx = vdupq_n_f32(r.orig[0]), rorigy = vdupq_n_f32(r.orig[1]),
+       rorigz = vdupq_n_f32(r.orig[2]), rdirx = vdupq_n_f32(r.dir[0]),
+       rdiry = vdupq_n_f32(r.dir[1]), rdirz = vdupq_n_f32(r.dir[2]);
 
   for (i = 0; i < l->n; i += 4) {
+    vec3 xs = {spheres[i].center[0], spheres[i + 1].center[0],
+               spheres[i + 2].center[0], spheres[i + 3].center[0]},
 
-    vec3 xs = {spheres[i].center[0], spheres[i+1].center[0],
-               spheres[i+2].center[0], spheres[i+3].center[0]},
+         ys = {spheres[i].center[1], spheres[i + 1].center[1],
+               spheres[i + 2].center[1], spheres[i + 3].center[1]},
 
-         ys = {spheres[i].center[1], spheres[i+1].center[1],
-               spheres[i+2].center[1], spheres[i+3].center[1]},
+         zs = {spheres[i].center[2], spheres[i + 1].center[2],
+               spheres[i + 2].center[2], spheres[i + 3].center[2]},
 
-         zs = {spheres[i].center[2], spheres[i+1].center[2],
-               spheres[i+2].center[2], spheres[i+3].center[2]},
-
-         rads = {spheres[i].radius*spheres[i].radius,
-                 spheres[i+1].radius*spheres[i+1].radius,
-                 spheres[i+2].radius*spheres[i+2].radius,
-                 spheres[i+3].radius*spheres[i+3].radius};
+         rads = {spheres[i].rsquare, spheres[i + 1].rsquare,
+                 spheres[i + 2].rsquare, spheres[i + 3].rsquare};
 
     // vec3 oc = v3sub(r.orig, s.center);
-    vec3 ocx = v3sub(rorigx, xs),
-         ocy = v3sub(rorigy, ys),
+    vec3 ocx = v3sub(rorigx, xs), ocy = v3sub(rorigy, ys),
          ocz = v3sub(rorigz, zs);
 
     // float a = v3dot(r.dir, r.dir);
-    vec3 ax = v3mul(rdirx, rdirx),
-         ay = v3mul(rdiry, rdiry),
-         az = v3mul(rdirz, rdirz),
-          a = v3add(az, v3add(ax, ay));
+    vec3 ax = v3mul(rdirx, rdirx), ay = v3mul(rdiry, rdiry),
+         az = v3mul(rdirz, rdirz), a = v3add(az, v3add(ax, ay));
 
     // float halfb = v3dot(oc, r.dir);
-    vec3 halfbx = v3mul(ocx, rdirx),
-         halfby = v3mul(ocy, rdiry),
+    vec3 halfbx = v3mul(ocx, rdirx), halfby = v3mul(ocy, rdiry),
          halfbz = v3mul(ocz, rdirz),
-          halfb = v3add(halfbz, v3add(halfbx, halfby));
+         halfb = v3add(halfbz, v3add(halfbx, halfby));
 
     // float c = v3dot(oc, oc) - s.radius * s.radius;
-    vec3 cx = v3mul(ocx, ocx),
-         cy = v3mul(ocy, ocy),
-         cz = v3mul(ocz, ocz),
-          c = v3sub(v3add(cz, v3add(cx, cy)), rads);
+    vec3 cx = v3mul(ocx, ocx), cy = v3mul(ocy, ocy), cz = v3mul(ocz, ocz),
+         c = v3sub(v3add(cz, v3add(cx, cy)), rads);
 
     // float discriminant = halfb * halfb - a * c;
     vec3 discrimiant = v3sub(v3mul(halfb, halfb), v3mul(a, c));
 
     for (j = 0; j < 4; j++) {
-      if(discrimiant[j] < 0)
+      if (discrimiant[j] < 0)
         continue;
 
       float sqrtd = sqrtf(discrimiant[j]);
-	    float root = (-halfb[j] - sqrtd) / a[j];
+      float root = (-halfb[j] - sqrtd) / a[j];
       if (root <= tmin || root >= closest) {
         root = (-halfb[j] + sqrtd) / a[j];
         if (root <= tmin || root >= closest)
           continue;
       }
 
-      // rec->t = root;
       rec->point = rayat(r, root);
       s = spheres + i + j;
 
-      hitanything++;
       closest = root;
     }
-    setfacenormal(r, v3scale(v3sub(rec->point, s->center), 1.0 / s->radius), rec);
+    setfacenormal(r, v3scale(v3sub(rec->point, s->center), 1.0 / s->radius),
+                  rec);
     rec->mat = s->mat;
- }
+  }
 
 #else
 
   for (i = 0; i < l->n; i++) {
-    if (spherehit(l->spheres[i], r, tmin, closest, rec)) {
-      hitanything++;
-      closest = rec->t;
+    sphere s = spheres[i];
+    vec3 oc = v3sub(r.orig, s.center);
+    float a = v3dot(r.dir, r.dir);
+    float halfb = v3dot(oc, r.dir);
+    float c = v3dot(oc, oc) - s.rsquare;
+    float discriminant = halfb * halfb - a * c;
+
+    if (discriminant < 0)
+      continue;
+
+    float sqrtd = sqrtf(discriminant);
+    float root = (-halfb - sqrtd) / a;
+    if (root <= tmin || root >= closest) {
+      root = (-halfb + sqrtd) / a;
+      if (root <= tmin || root >= closest)
+        continue;
     }
+
+    rec->t = root;
+    rec->point = rayat(r, rec->t);
+    setfacenormal(r, v3scale(v3sub(rec->point, s.center), 1.0 / s.radius), rec);
+    rec->mat = s.mat;
+    closest = rec->t;
   }
 
 #endif
 
-  return hitanything;
+  return closest != tmax ? 1 : 0;
 }
 
 // Material functions

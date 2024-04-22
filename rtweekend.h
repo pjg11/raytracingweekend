@@ -94,7 +94,7 @@ typedef struct {
 
 typedef struct {
   vec3 center;
-  float radius;
+  float radius, rsquare;
   material mat;
 } sphere;
 
