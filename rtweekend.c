@@ -151,6 +151,20 @@ void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->normal = rec->frontface ? outwardnormal : v3neg(outwardnormal);
 }
 
+// From https://stackoverflow.com/a/76500658
+
+float32x4x4_t zip(float32x4x4_t a) {
+  float32x4x2_t b = vzipq_f32(a.val[0], a.val[2]);
+  float32x4x2_t c = vzipq_f32(a.val[1], a.val[3]);
+
+  float32x4x4_t d;
+  d.val[0] = b.val[0];
+  d.val[1] = b.val[1];
+  d.val[2] = c.val[0];
+  d.val[3] = c.val[1];
+  return d;
+}
+
 int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
                   hitrecord *rec) {
   int i, j;
@@ -158,27 +172,23 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
   sphere *spheres = l->spheres, *s;
 
 #if defined(__ARM_NEON)
-
   vec3 rorigx = vdupq_n_f32(r.orig[0]), rorigy = vdupq_n_f32(r.orig[1]),
        rorigz = vdupq_n_f32(r.orig[2]), rdirx = vdupq_n_f32(r.dir[0]),
        rdiry = vdupq_n_f32(r.dir[1]), rdirz = vdupq_n_f32(r.dir[2]);
 
   for (i = 0; i < l->n; i += 4) {
-    vec3 xs = {spheres[i].center[0], spheres[i + 1].center[0],
-               spheres[i + 2].center[0], spheres[i + 3].center[0]},
+    float32x4x4_t xyzr = {spheres[i].center, spheres[i + 1].center,
+                          spheres[i + 2].center, spheres[i + 3].center};
+    xyzr = zip(zip(xyzr));
 
-         ys = {spheres[i].center[1], spheres[i + 1].center[1],
-               spheres[i + 2].center[1], spheres[i + 3].center[1]},
-
-         zs = {spheres[i].center[2], spheres[i + 1].center[2],
-               spheres[i + 2].center[2], spheres[i + 3].center[2]},
-
-         rads = {spheres[i].rsquare, spheres[i + 1].rsquare,
-                 spheres[i + 2].rsquare, spheres[i + 3].rsquare};
+    xyzr.val[3][0] = spheres[i].rsquare;
+    xyzr.val[3][1] = spheres[i + 1].rsquare;
+    xyzr.val[3][2] = spheres[i + 2].rsquare;
+    xyzr.val[3][3] = spheres[i + 3].rsquare;
 
     // vec3 oc = v3sub(r.orig, s.center);
-    vec3 ocx = v3sub(rorigx, xs), ocy = v3sub(rorigy, ys),
-         ocz = v3sub(rorigz, zs);
+    vec3 ocx = v3sub(rorigx, xyzr.val[0]), ocy = v3sub(rorigy, xyzr.val[1]),
+         ocz = v3sub(rorigz, xyzr.val[2]);
 
     // float a = v3dot(r.dir, r.dir);
     vec3 ax = v3mul(rdirx, rdirx), ay = v3mul(rdiry, rdiry),
@@ -191,7 +201,7 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
 
     // float c = v3dot(oc, oc) - s.radius * s.radius;
     vec3 cx = v3mul(ocx, ocx), cy = v3mul(ocy, ocy), cz = v3mul(ocz, ocz),
-         c = v3sub(v3add(cz, v3add(cx, cy)), rads);
+         c = v3sub(v3add(cz, v3add(cx, cy)), xyzr.val[3]);
 
     // float discriminant = halfb * halfb - a * c;
     vec3 discrimiant = v3sub(v3mul(halfb, halfb), v3mul(a, c));
@@ -292,6 +302,7 @@ material dielectric(float ir) {
 int scatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
   material mat = rec->mat;
   switch (mat.type) {
+
   case LAMBERTIAN: {
     struct lambertian data = mat.data.lambertian;
     vec3 dir = v3add(rec->normal, v3randomunit());
