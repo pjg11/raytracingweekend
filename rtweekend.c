@@ -480,4 +480,5 @@ void render(camera *c, spherelist *world) {
   }
 
   free(pixels);
+  free(world->spheres);
 }
