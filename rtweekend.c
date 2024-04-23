@@ -206,6 +206,9 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
     // float discriminant = halfb * halfb - a * c;
     vec3 discrimiant = v3sub(v3mul(halfb, halfb), v3mul(a, c));
 
+    if(vmaxvq_f32(discrimiant) < 0.0)
+      continue;
+
     for (j = 0; j < 4; j++) {
       if (discrimiant[j] < 0)
         continue;
