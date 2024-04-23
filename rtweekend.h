@@ -11,19 +11,28 @@
 #define NTHREADS 4
 #endif
 
-extern const float pi, MAX_RAND, infinity;
-unsigned int g_seed;
+#ifndef MAXRAND
+#define MAXRAND 0x7FFF
+#endif
 
-// From https://stackoverflow.com/a/26237777
+// fastsrand() and fastrand() from https://stackoverflow.com/a/26237777
+unsigned int gseed;
 
-inline void fast_srand(int seed) { g_seed = seed; }
+inline void fastsrand(unsigned int seed) { gseed = seed; }
 
-inline int fast_rand(void) {
-  g_seed = (214013 * g_seed + 2531011);
-  return (g_seed >> 16) & (int)MAX_RAND;
+inline int fastrand(void) {
+  gseed = (214013 * gseed + 2531011);
+  return (gseed >> 16) & (int)MAXRAND;
 }
 
-inline float randomfloat(void) { return fast_rand() / (MAX_RAND + 1.0); }
+inline float randomfloat(void) { return fastrand() / (MAXRAND + 1.0); }
+
+inline float clamp(float x) {
+  float tmin = 0.000, tmax = 0.999;
+  return x < tmin ? tmin : x > tmax ? tmax : x;
+}
+
+inline float degtorad(float deg) { return M_PI * deg / 180.0; }
 
 #if defined(__ARM_NEON)
 
@@ -38,28 +47,18 @@ typedef struct {
 
 #endif
 
-float v3x(vec3 v);
-float v3y(vec3 v);
-float v3z(vec3 v);
-
 vec3 v3(float x, float y, float z);
-vec3 v3add(vec3 v, vec3 w);
 vec3 v3sub(vec3 v, vec3 w);
-vec3 v3neg(vec3 v);
 vec3 v3mul(vec3 v, vec3 w);
-vec3 v3scale(vec3 v, float c);
-float v3dot(vec3 v, vec3 w);
-float v3length(vec3 v);
-vec3 v3unit(vec3 v);
-vec3 v3cross(vec3 v, vec3 w);
 vec3 v3random(void);
 vec3 v3randominterval(float min, float max);
-vec3 v3randomunit(void);
-vec3 v3randomunitdisk(void);
+float v3length(vec3 v);
 
 typedef struct {
   vec3 orig, dir;
 } ray;
+
+ray r(vec3 from, vec3 to);
 
 enum material { LAMBERTIAN, METAL, DIELECTRIC };
 

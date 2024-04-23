@@ -1,19 +1,11 @@
 #include "rtweekend.h"
 
-const float pi = 3.1415926535897932385;
-const float MAX_RAND = 0x7FFF;
-const float infinity = INFINITY;
+/* --------------------------------------------------------------------------
+ * Vector Functions
+ * -------------------------------------------------------------------------- */
 
-float clamp(float x) {
-  float tmin = 0.000, tmax = 0.999;
-  return x < tmin ? tmin : x > tmax ? tmax : x;
-}
-float degtorad(float deg) { return pi * deg / 180.0; }
-
-// Vector functions
-
-static vec3 zero;
-
+// ARM Neon version from
+// https://blog.jacobvosmaer.nl/0022-ray-tracing-weekend
 #if defined(__ARM_NEON)
 
 float v3x(vec3 v) { return v[0]; }
@@ -33,9 +25,12 @@ vec3 v3add(vec3 v, vec3 w) { return vaddq_f32(v, w); }
 vec3 v3sub(vec3 v, vec3 w) { return vsubq_f32(v, w); }
 vec3 v3mul(vec3 v, vec3 w) { return vmulq_f32(v, w); }
 vec3 v3scale(vec3 v, float c) { return vmulq_n_f32(v, c); }
+vec3 v3neg(vec3 v) { return vnegq_f32(v); }
 float v3dot(vec3 v, vec3 w) { return vaddvq_f32(vmulq_f32(v, w)); }
 
 #else
+
+static vec3 zero;
 
 float v3x(vec3 v) { return v.x; }
 float v3y(vec3 v) { return v.y; }
@@ -78,12 +73,12 @@ vec3 v3scale(vec3 v, float c) {
 }
 
 float v3dot(vec3 v, vec3 w) { return v.x * w.x + v.y * w.y + v.z * w.z; }
+vec3 v3neg(vec3 v) { return v3sub(zero, v); }
 
 #endif
 
-vec3 v3neg(vec3 v) { return v3sub(zero, v); }
-
 float v3length(vec3 v) { return sqrtf(v3dot(v, v)); }
+
 vec3 v3unit(vec3 v) { return v3scale(v, 1.0 / v3length(v)); }
 
 vec3 v3cross(vec3 v, vec3 w) {
@@ -128,7 +123,10 @@ ray r(vec3 from, vec3 to) {
   return r;
 }
 
-// Sphere functions
+/* --------------------------------------------------------------------------
+ * Sphere Functions
+ * -------------------------------------------------------------------------- */
+
 sphere sp(vec3 center, float radius, material mat) {
   sphere s;
   s.center = center;
@@ -151,30 +149,25 @@ void setfacenormal(ray r, vec3 outwardnormal, hitrecord *rec) {
   rec->normal = rec->frontface ? outwardnormal : v3neg(outwardnormal);
 }
 
-// From https://stackoverflow.com/a/76500658
-
+// https://stackoverflow.com/a/76500658
 float32x4x4_t zip(float32x4x4_t a) {
-  float32x4x2_t b = vzipq_f32(a.val[0], a.val[2]);
-  float32x4x2_t c = vzipq_f32(a.val[1], a.val[3]);
-
-  float32x4x4_t d;
-  d.val[0] = b.val[0];
-  d.val[1] = b.val[1];
-  d.val[2] = c.val[0];
-  d.val[3] = c.val[1];
-  return d;
+  float32x4x4_t b = {
+      vzip1q_s32(a.val[0], a.val[2]), vzip2q_s32(a.val[0], a.val[2]),
+      vzip1q_s32(a.val[1], a.val[3]), vzip2q_s32(a.val[1], a.val[3])};
+  return b;
 }
 
+// ARM Neon version from
+// https://www.jakef.science/posts/simd-parallelism/#four-spheres-at-a-time
 int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
                   hitrecord *rec) {
   int i, j;
-  float closest = tmax;
+  float closest = tmax, a = v3dot(r.dir, r.dir);
   sphere *spheres = l->spheres, *s;
 
 #if defined(__ARM_NEON)
   vec3 rorigx = vdupq_n_f32(r.orig[0]), rorigy = vdupq_n_f32(r.orig[1]),
-       rorigz = vdupq_n_f32(r.orig[2]), rdirx = vdupq_n_f32(r.dir[0]),
-       rdiry = vdupq_n_f32(r.dir[1]), rdirz = vdupq_n_f32(r.dir[2]);
+       rorigz = vdupq_n_f32(r.orig[2]);
 
   for (i = 0; i < l->n; i += 4) {
     float32x4x4_t xyzr = {spheres[i].center, spheres[i + 1].center,
@@ -190,13 +183,9 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
     vec3 ocx = v3sub(rorigx, xyzr.val[0]), ocy = v3sub(rorigy, xyzr.val[1]),
          ocz = v3sub(rorigz, xyzr.val[2]);
 
-    // float a = v3dot(r.dir, r.dir);
-    vec3 ax = v3mul(rdirx, rdirx), ay = v3mul(rdiry, rdiry),
-         az = v3mul(rdirz, rdirz), a = v3add(az, v3add(ax, ay));
-
     // float halfb = v3dot(oc, r.dir);
-    vec3 halfbx = v3mul(ocx, rdirx), halfby = v3mul(ocy, rdiry),
-         halfbz = v3mul(ocz, rdirz),
+    vec3 halfbx = v3scale(ocx, v3x(r.dir)), halfby = v3scale(ocy, v3y(r.dir)),
+         halfbz = v3scale(ocz, v3z(r.dir)),
          halfb = v3add(halfbz, v3add(halfbx, halfby));
 
     // float c = v3dot(oc, oc) - s.radius * s.radius;
@@ -204,9 +193,9 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
          c = v3sub(v3add(cz, v3add(cx, cy)), xyzr.val[3]);
 
     // float discriminant = halfb * halfb - a * c;
-    vec3 discrimiant = v3sub(v3mul(halfb, halfb), v3mul(a, c));
+    vec3 discrimiant = v3sub(v3mul(halfb, halfb), v3scale(c, a));
 
-    if(vmaxvq_f32(discrimiant) < 0.0)
+    if (vmaxvq_f32(discrimiant) < 0.0)
       continue;
 
     for (j = 0; j < 4; j++) {
@@ -214,16 +203,15 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
         continue;
 
       float sqrtd = sqrtf(discrimiant[j]);
-      float root = (-halfb[j] - sqrtd) / a[j];
+      float root = (-halfb[j] - sqrtd) / a;
       if (root <= tmin || root >= closest) {
-        root = (-halfb[j] + sqrtd) / a[j];
+        root = (-halfb[j] + sqrtd) / a;
         if (root <= tmin || root >= closest)
           continue;
       }
 
       rec->point = rayat(r, root);
       s = spheres + i + j;
-
       closest = root;
     }
     setfacenormal(r, v3scale(v3sub(rec->point, s->center), 1.0 / s->radius),
@@ -236,7 +224,6 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
   for (i = 0; i < l->n; i++) {
     sphere s = spheres[i];
     vec3 oc = v3sub(r.orig, s.center);
-    float a = v3dot(r.dir, r.dir);
     float halfb = v3dot(oc, r.dir);
     float c = v3dot(oc, oc) - s.rsquare;
     float discriminant = halfb * halfb - a * c;
@@ -260,11 +247,13 @@ int spherelisthit(spherelist *l, ray r, float tmin, float tmax,
   }
 
 #endif
-
   return closest != tmax ? 1 : 0;
 }
 
-// Material functions
+/* --------------------------------------------------------------------------
+ * Material Functions
+ * -------------------------------------------------------------------------- */
+
 vec3 reflect(vec3 v, vec3 n) { return v3sub(v, v3scale(n, 2 * v3dot(v, n))); }
 
 vec3 refract(vec3 uv, vec3 n, float etaioveretat) {
@@ -347,7 +336,10 @@ int scatter(ray in, hitrecord *rec, vec3 *attenuation, ray *scattered) {
   }
 }
 
-// Camera functions
+/* --------------------------------------------------------------------------
+ * Camera Functions
+ * -------------------------------------------------------------------------- */
+
 vec3 pixelsamplesquare(camera *c) {
   float px = -0.5 + randomfloat();
   float py = -0.5 + randomfloat();
@@ -374,7 +366,7 @@ vec3 raycolor(ray r, int depth, spherelist *world) {
   vec3 color, attenuation = {1, 1, 1};
 
   while (depth > 0) {
-    if (spherelisthit(world, r, 0.001, infinity, &rec)) {
+    if (spherelisthit(world, r, 0.001, INFINITY, &rec)) {
       if (scatter(r, &rec, &color, &r)) {
         attenuation = v3mul(attenuation, color);
         depth -= 1;
@@ -433,6 +425,10 @@ void initialize(camera *c) {
   c->defdisku = v3scale(c->u, defocusradius);
   c->defdiskv = v3scale(c->v, defocusradius);
 }
+
+/* --------------------------------------------------------------------------
+ * Render Functions
+ * -------------------------------------------------------------------------- */
 
 void *linesrender(void *args) {
   int i, j, sample;
